@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tempsfteam.class_tool.mapper.CourseTypeMapper">
+
+    <resultMap id="BaseResultMap" type="com.tempsfteam.class_tool.entity.CourseType">
+        <id property="courseTypeId" column="course_type_id" jdbcType="INTEGER"/>
+        <result property="name" column="name" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        course_type_id,name
+    </sql>
+</mapper>
