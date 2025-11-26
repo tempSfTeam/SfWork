@@ -6,7 +6,7 @@ import com.tempsfteam.class_tool.dto.SchoolDTO;
 import com.tempsfteam.class_tool.entity.School;
 
 /**
- * @author 21983
+ * @author hypocodeemia
  * @description 针对表【school】的数据库操作Service
  * @createDate 2024-09-10 14:42:24
  */

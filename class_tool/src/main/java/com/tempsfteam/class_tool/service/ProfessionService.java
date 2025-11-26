@@ -6,7 +6,7 @@ import com.tempsfteam.class_tool.dto.ProfessionDTO;
 import com.tempsfteam.class_tool.entity.Profession;
 
 /**
- * @author 21983
+ * @author hypocodeemia
  * @description 针对表【profession】的数据库操作Service
  * @createDate 2024-09-10 14:42:24
  */
@@ -17,7 +17,7 @@ public interface ProfessionService extends IService<Profession> {
      * @param courseTypeId  归属的学习对象的id
      * @return              Msg
      */
-    Msg addProfession(String name, Integer courseTypeId);
+    Msg addProfession(Integer courseTypeId,String name);
 
     /**
      * 删除课程科目
@@ -39,3 +39,4 @@ public interface ProfessionService extends IService<Profession> {
      */
     Msg listAllProfession();
 }
+

@@ -1,4 +1,42 @@
 package com.tempsfteam.class_tool.service.impl;
 
-public class ProfessionServiceImpl {
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.tempsfteam.class_tool.bean.Msg;
+import com.tempsfteam.class_tool.dto.ProfessionDTO;
+import com.tempsfteam.class_tool.entity.Profession;
+import com.tempsfteam.class_tool.mapper.ProfessionMapper;
+import com.tempsfteam.class_tool.service.ProfessionService;
+import org.springframework.stereotype.Service;
+
+/**
+ * @author hypocodeemia
+ * @description 针对表【profession】的数据库操作Service实现
+ * @createDate 2024-09-10 14:42:23
+ */
+@Service
+public class ProfessionServiceImpl extends ServiceImpl<ProfessionMapper, Profession>
+        implements ProfessionService {
+
+    @Override
+    public Msg addProfession(Integer courseTypeId,String name) {
+        Profession profession = new Profession(courseTypeId,name);
+        boolean isSaved = this.save(profession);
+        return isSaved ? Msg.success("添加课程科目成功",profession.getProfessionId(),null) : Msg.fail("添加课程科目失败");
+    }
+
+    @Override
+    public Msg deleteProfession(Integer professionId) {
+        return this.removeById(professionId) ? Msg.success() : Msg.fail("删除课程科目失败");
+    }
+
+    @Override
+    public Msg updateProfessionInfo(ProfessionDTO professionDTO) {
+        return this.updateById(new Profession(professionDTO)) ? Msg.success()
+                : Msg.fail("更改课程科目信息失败");
+    }
+
+    @Override
+    public Msg listAllProfession() {
+        return Msg.success("以下为全部的课程科目",this.list());
+    }
 }

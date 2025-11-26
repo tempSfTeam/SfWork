@@ -2,15 +2,15 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.tempsfteam.class_tool.mapper.ClassMapper">
+<mapper namespace="com.tempsfteam.class_tool.mapper.ClasseMapper">
 
-    <resultMap id="BaseResultMap" type="com.tempsfteam.class_tool.entity.Class">
-        <id property="classId" column="class_id" jdbcType="INTEGER"/>
+    <resultMap id="BaseResultMap" type="com.tempsfteam.class_tool.entity.Classe">
+        <id property="classeId" column="classe_id" jdbcType="INTEGER"/>
         <result property="name" column="name" jdbcType="VARCHAR"/>
         <result property="schoolId" column="school_id" jdbcType="INTEGER"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        class_id,name,school_id
+        classe_id,name,school_id
     </sql>
 </mapper>

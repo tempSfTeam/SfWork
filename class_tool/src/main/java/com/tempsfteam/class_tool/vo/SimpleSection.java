@@ -1,4 +1,4 @@
-package com.tempsfteam.class_tool.dto;
+package com.tempsfteam.class_tool.vo;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -10,10 +10,8 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ClassDTO {
-    private Integer classId;
+public class SimpleSection {
+    private Integer sectionId;
 
     private String name;
-
-    private Integer schoolId;
 }

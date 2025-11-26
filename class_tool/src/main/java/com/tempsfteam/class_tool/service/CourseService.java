@@ -6,7 +6,7 @@ import com.tempsfteam.class_tool.dto.CourseDTO;
 import com.tempsfteam.class_tool.entity.Course;
 
 /**
- * @author 21983
+ * @author hypocodeemia
  * @description 针对表【course】的数据库操作Service
  * @createDate 2024-09-10 14:42:23
  */
@@ -19,7 +19,7 @@ public interface CourseService extends IService<Course> {
      * @param managerId     课程管理员id
      * @return              Msg
      */
-    Msg addCourse(String name, String description, String icon, Integer managerId);
+    Msg addCourse(String name,String description,String icon,Integer managerId);
 
     /**
      * 删除课程
@@ -46,5 +46,20 @@ public interface CourseService extends IService<Course> {
      * @return          Msg
      */
     Msg listCourseByRole();
+
+    /**
+     * 获取特定的一个课程
+     * @param courseId 课程id
+     * @return         Msg
+     */
+    Msg getOne(Integer courseId);
+
+    /**
+     * 从redis中获取点击数最多的n个课程的id，然后去mysql补齐
+     * @param number    需要的热门课程的数量
+     * @return          Msg
+     */
+    Msg listPopularCourse (Integer number);
 }
+
 
