@@ -26,7 +26,7 @@ public class ResourcesInterceptor implements HandlerInterceptor {
 //        logger.info("videoId: " + pathVars.get("videoId"));
         // 获取文件名
         String uri = request.getRequestURI();
-        String fileName = uri.substring(uri.lastIndexOf("/") + 1).substring(0, uri.lastIndexOf("."));
+        String fileName = uri.substring(uri.lastIndexOf("/") + 1);
         logger.info("fileName: " + fileName);
         return true;
     }
