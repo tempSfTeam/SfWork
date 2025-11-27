@@ -41,6 +41,7 @@ public class TestController {
     @GetMapping("/pdf/{pdfId}")
     public ResponseEntity<FileSystemResource> getPdf(@PathVariable String pdfId) {
         String filePath = pdfPath + pdfId + ".pdf";
+        logger.info("filepath: " + filePath);
         File file = new File(filePath);
         HttpHeaders headers = new HttpHeaders();
         headers.add("Content-Disposition", "inline;filename=a.pdf");
@@ -59,6 +60,7 @@ public class TestController {
     @GetMapping("/video/{videoId}")
     public void getVideo(HttpServletRequest request, HttpServletResponse response, @PathVariable String videoId) throws IOException {
         String filePath = videoPath + videoId + ".mp4";
+        logger.info("filepath: " + filePath);
         File file = new File(filePath);
         if (!file.exists()) {
             response.sendError(HttpStatus.NOT_FOUND.value(), "文件不存在");
