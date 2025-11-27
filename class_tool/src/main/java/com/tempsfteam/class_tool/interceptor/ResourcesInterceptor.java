@@ -4,11 +4,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
-import org.springframework.web.servlet.HandlerMapping;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.Map;
 
 /**
  * @author : IMG
@@ -22,10 +20,14 @@ public class ResourcesInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         // 获取路径变量
-        Map<String, String> pathVars = (Map<String, String>) request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
-        String pdfId = pathVars.get("pdfId");
-        logger.info("pdfId: " + pdfId);
-        logger.info("videoId: " + pathVars.get("videoId"));
+//        Map<String, String> pathVars = (Map<String, String>) request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
+//        String pdfId = pathVars.get("pdfId");
+//        logger.info("pdfId: " + pdfId);
+//        logger.info("videoId: " + pathVars.get("videoId"));
+        // 获取文件名
+        String uri = request.getRequestURI();
+        String fileName = uri.substring(uri.lastIndexOf("/") + 1).substring(0, uri.lastIndexOf("."));
+        logger.info("fileName: " + fileName);
         return true;
     }
 }

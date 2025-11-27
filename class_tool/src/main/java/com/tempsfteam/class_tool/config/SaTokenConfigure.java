@@ -1,8 +1,10 @@
 package com.tempsfteam.class_tool.config;
 
 import com.tempsfteam.class_tool.interceptor.ResourcesInterceptor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
@@ -11,6 +13,12 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  */
 @Configuration
 public class SaTokenConfigure implements WebMvcConfigurer {
+
+    @Value("${file.pdf}")
+    private String pdfPath;
+
+    @Value("${file.video}")
+    private String videoPath;
 
     /**
      * 注册拦截器
@@ -22,6 +30,16 @@ public class SaTokenConfigure implements WebMvcConfigurer {
 //                        SaRouter.match("/test/**", r -> System.out.println("拦截到了路径：" + r));
 //            })).addPathPatterns("/test/**");
         registry.addInterceptor(new ResourcesInterceptor())
-                .addPathPatterns("/test/**");
+                .addPathPatterns("/test/**")
+                .addPathPatterns("/file/**");
+    }
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/file/pdf/**")
+                .addResourceLocations("file:///" + pdfPath);
+        registry.addResourceHandler("/file/video/**")
+                .addResourceLocations("file:///" + videoPath);
     }
 }
+
