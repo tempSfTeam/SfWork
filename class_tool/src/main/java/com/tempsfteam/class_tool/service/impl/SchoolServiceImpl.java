@@ -21,7 +21,7 @@ public class SchoolServiceImpl extends ServiceImpl<SchoolMapper, School>
     public Msg addSchool(String name) {
         School school = new School(name);
         boolean isSaved = this.save(school);
-        return isSaved ? Msg.success("添加学校成功",school.getSchoolId(),null) : Msg.fail("添加学校失败");
+        return isSaved? Msg.success("添加学校成功", school.getSchoolId(), null) : Msg.fail("添加学校失败");
     }
 
     @Override

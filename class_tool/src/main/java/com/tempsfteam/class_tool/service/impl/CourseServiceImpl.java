@@ -47,7 +47,7 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course>
 
     @Override
     public Msg getOne(Integer courseId) {
-        return Msg.success("以下为全部的课程",this.getById(courseId));
+        return Msg.success("以下为课程详细信息",this.getById(courseId));
     }
 
     @Override

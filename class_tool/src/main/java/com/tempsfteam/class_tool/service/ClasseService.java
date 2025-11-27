@@ -7,7 +7,7 @@ import com.tempsfteam.class_tool.entity.Classe;
 
 /**
  * @author hypocodeemia
- * @description 针对表【form】的数据库操作Service
+ * @description 针对表【classe】的数据库操作Service
  * @createDate 2024-09-12 17:35:32
  */
 public interface ClasseService extends IService<Classe> {
@@ -21,10 +21,10 @@ public interface ClasseService extends IService<Classe> {
 
     /**
      * 删除班级
-     * @param formId    班级id
+     * @param classeId  班级id
      * @return          Msg
      */
-    Msg deleteClasse(Integer formId);
+    Msg deleteClasse(Integer classeId);
 
     /**
      * 更新班级基础信息

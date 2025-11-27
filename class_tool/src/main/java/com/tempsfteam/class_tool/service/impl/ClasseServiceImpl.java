@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * @author hypocodeemia
- * @description 针对表【form】的数据库操作Service实现
+ * @description 针对表【classe】的数据库操作Service实现
  * @createDate 2024-09-12 17:35:32
  */
 @Service
@@ -25,8 +25,8 @@ public class ClasseServiceImpl extends ServiceImpl<ClasseMapper, Classe>
     }
 
     @Override
-    public Msg deleteClasse(Integer formId) {
-        return this.removeById(formId) ? Msg.success() : Msg.fail("删除班级失败");
+    public Msg deleteClasse(Integer classeId) {
+        return this.removeById(classeId) ? Msg.success() : Msg.fail("删除班级失败");
     }
 
     @Override
@@ -42,7 +42,7 @@ public class ClasseServiceImpl extends ServiceImpl<ClasseMapper, Classe>
 
     @Override
     public Msg listClasseByCourseId(Integer courseId) {
-        return Msg.success("以下是目标学校的所有班级",this.getBaseMapper().getClasseListByCourseId(courseId));
+        return Msg.success("以下是目标课程的所有班级",this.getBaseMapper().getClasseListByCourseId(courseId));
     }
 }
 
