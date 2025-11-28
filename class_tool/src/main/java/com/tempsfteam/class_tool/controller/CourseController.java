@@ -12,6 +12,7 @@ import javax.annotation.Resource;
  */
 @RestController
 @RequestMapping("course")
+
 public class CourseController {
     @Resource
     private CourseService courseService;
@@ -25,6 +26,11 @@ public class CourseController {
     @PostMapping("delete")
     public Msg delete(@RequestBody CourseDTO courseDTO){
         return courseService.deleteCourse(courseDTO.getCourseId());
+    }
+
+    @PostMapping("plusCourseClick")
+    public void plusCourseClick(@RequestBody CourseDTO courseDTO){
+        courseService.plusCourseClick(courseDTO.getCourseId());
     }
 
     @PostMapping("update")

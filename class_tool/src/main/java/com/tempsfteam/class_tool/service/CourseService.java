@@ -29,6 +29,12 @@ public interface CourseService extends IService<Course> {
     Msg deleteCourse(Integer courseId);
 
     /**
+     * 给课程的浏览次数+1
+     * @param courseId 课程id
+     */
+    public void plusCourseClick(Integer courseId);
+
+    /**
      * 更新课程基础信息
      * @param courseDTO courseDTO
      * @return          Msg
@@ -61,5 +67,4 @@ public interface CourseService extends IService<Course> {
      */
     Msg listPopularCourse (Integer number);
 }
-
 
