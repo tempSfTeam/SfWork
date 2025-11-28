@@ -30,7 +30,6 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course>
 
     private String redisKeyStr = "CourseClick";
 
-    private final Logger logger = LoggerFactory.getLogger(Course.class);
 
     @Override
     @Transactional
@@ -76,7 +75,7 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course>
             // 2.b 失败
             return Msg.fail("删除课程失败");
         }
-        return this.removeById(courseId) ? Msg.success() : Msg.fail("删除课程失败");
+        return  Msg.success();
     }
 
     @Override
