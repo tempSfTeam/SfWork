@@ -11,27 +11,28 @@ import javax.annotation.Resource;
  * @author hypocodeemia
  */
 @RestController
-@RequestMapping("profession")
+@RequestMapping("/profession")
+
 public class ProfessionController {
     @Resource
     private ProfessionService professionService;
 
-    @PostMapping("add")
+    @PostMapping("/add")
     public Msg add(@RequestBody ProfessionDTO professionDTO){
         return professionService.addProfession(professionDTO.getCourseTypeId(), professionDTO.getName());
     }
 
-    @PostMapping("delete")
+    @PostMapping("/delete")
     public Msg delete(@RequestBody ProfessionDTO professionDTO){
         return professionService.deleteProfession(professionDTO.getProfessionId());
     }
 
-    @PostMapping("update")
+    @PostMapping("/update")
     public Msg update(@RequestBody ProfessionDTO professionDTO){
         return professionService.updateProfessionInfo(professionDTO);
     }
 
-    @GetMapping("listAll")
+    @GetMapping("/listAll")
     public Msg listAll(){
         return professionService.listAllProfession();
     }

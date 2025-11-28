@@ -11,32 +11,33 @@ import javax.annotation.Resource;
  * @author hypocodeemia
  */
 @RestController
-@RequestMapping("classe")
+@RequestMapping("/classe")
+
 public class ClasseController {
     @Resource
     private ClasseService classeService;
 
-    @PostMapping("add")
+    @PostMapping("/add")
     public Msg add(@RequestBody ClasseDTO classeDTO){
         return classeService.addClasse(classeDTO.getName(), classeDTO.getSchoolId());
     }
 
-    @PostMapping("delete")
+    @PostMapping("/delete")
     public Msg delete(@RequestBody ClasseDTO classeDTO){
         return classeService.deleteClasse(classeDTO.getClasseId());
     }
 
-    @PostMapping("update")
+    @PostMapping("/update")
     public Msg update(@RequestBody ClasseDTO classeDTO){
         return classeService.updateClasseInfo(classeDTO);
     }
 
-    @GetMapping("listAllBySchoolId")
+    @GetMapping("/listAllBySchoolId")
     public Msg listAllBySchoolId(@RequestParam("schoolId")Integer schoolId){
         return classeService.listClasseBySchoolId(schoolId);
     }
 
-    @GetMapping("listAllByCourseId")
+    @GetMapping("/listAllByCourseId")
     public Msg listAllByCourseId(@RequestParam("courseId")Integer courseId){
         return classeService.listClasseByCourseId(courseId);
     }

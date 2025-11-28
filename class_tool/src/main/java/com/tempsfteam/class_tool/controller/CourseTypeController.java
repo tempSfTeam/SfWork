@@ -11,27 +11,28 @@ import javax.annotation.Resource;
  * @author hypocodeemia
  */
 @RestController
-@RequestMapping("courseType")
+@RequestMapping("/courseType")
+
 public class CourseTypeController {
     @Resource
     private CourseTypeService courseTypeService;
 
-    @PostMapping("add")
+    @PostMapping("/add")
     public Msg add(@RequestBody CourseTypeDTO courseTypeDTO){
         return courseTypeService.addCourseType(courseTypeDTO.getName());
     }
 
-    @PostMapping("delete")
+    @PostMapping("/delete")
     public Msg delete(@RequestBody CourseTypeDTO courseTypeDTO){
         return courseTypeService.deleteCourseType(courseTypeDTO.getCourseTypeId());
     }
 
-    @PostMapping("update")
+    @PostMapping("/update")
     public Msg update(@RequestBody CourseTypeDTO courseTypeDTO){
         return courseTypeService.updateCourseTypeInfo(courseTypeDTO);
     }
 
-    @GetMapping("listAll")
+    @GetMapping("/listAll")
     public Msg listAll(){
         return courseTypeService.listAllCourseType();
     }
