@@ -4,6 +4,7 @@ import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.tempsfteam.class_tool.bean.Msg;
+import com.tempsfteam.class_tool.bean.UserData;
 import com.tempsfteam.class_tool.dto.LoginDTO;
 import com.tempsfteam.class_tool.dto.UpdateUserDTO;
 import com.tempsfteam.class_tool.entity.User;
@@ -83,6 +84,8 @@ public class UserController {
             return Msg.notLegal("用户不存在");
         }
         StpUtil.login(user.getUserId());
+        UserData userData = new UserData(user.getUserId(), user.getName(), user.getRole());
+        StpUtil.getSession().set("userData", userData);
         return Msg.success("获取token成功", StpUtil.getTokenValue());
     }
 
