@@ -72,6 +72,4 @@ public class UserController {
         return user == null ? Msg.notLegal("用户不存在") : Msg.success("获取用户信息成功", UserVO.convertToUserVO(user));
     }
 
-
-
 }

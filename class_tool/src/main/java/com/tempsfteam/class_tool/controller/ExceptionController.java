@@ -1,6 +1,7 @@
 package com.tempsfteam.class_tool.controller;
 
 import cn.dev33.satoken.exception.NotLoginException;
+import cn.dev33.satoken.exception.NotRoleException;
 import com.tempsfteam.class_tool.bean.Msg;
 import com.tempsfteam.class_tool.exception.ServiceException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -83,6 +84,12 @@ public class ExceptionController {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Msg notLoginExceptionExceptionHandler(NotLoginException e) {
         return Msg.fail(e.getMessage());
+    }
+
+    @ExceptionHandler({NotRoleException.class})
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Msg notRoleExceptionExceptionHandler(NotRoleException e) {
+        return Msg.notPermitted("您没有权限进行此操作");
     }
 
 }

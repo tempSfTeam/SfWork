@@ -27,11 +27,11 @@ public class StpInterfaceImpl implements StpInterface {
         Integer userRole = userData.getRole();
         List<String> list = new ArrayList<>();
         if (userRole.equals(Role.TEACHER)) {
-            list.add("teacher");
+            list.add("TEACHER");
         } else if (userRole.equals(Role.COURSE_MANAGER)) {
-            list.add("courseManager");
+            list.add("COURSE_MANAGER");
         } else if (userRole.equals(Role.OPERATIONS)) {
-            list.add("operations");
+            list.add("OPERATIONS");
         }
         return list;
     }
