@@ -69,7 +69,7 @@
         </logger>
     </springProfile>
 
-    <!-- 开发环境控制台输出配置 -->
+    <!-- 线上环境控制台不输出配置 -->
     <springProfile name="release">
         <!-- 根日志级别配置 -->
         <root level="INFO">

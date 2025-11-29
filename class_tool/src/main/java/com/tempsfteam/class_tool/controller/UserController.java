@@ -1,12 +1,15 @@
 package com.tempsfteam.class_tool.controller;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.stp.StpUtil;
 import com.tempsfteam.class_tool.bean.Msg;
 import com.tempsfteam.class_tool.dto.LoginDTO;
 import com.tempsfteam.class_tool.dto.UpdateUserDTO;
+import com.tempsfteam.class_tool.entity.User;
 import com.tempsfteam.class_tool.service.UserService;
 import com.tempsfteam.class_tool.util.CheckCodeUtil;
 import com.tempsfteam.class_tool.validation.TotalValidation;
+import com.tempsfteam.class_tool.vo.UserVO;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -48,24 +51,25 @@ public class UserController {
         return userService.login(loginDTO);
     }
 
+    @SaCheckLogin
     @PostMapping("/logout")
     public Msg logout() {
         // 如果已经登录，则登出
-        if (StpUtil.isLogin()) {
-            StpUtil.logout();
-            return Msg.success("登出成功");
-        }
-        return Msg.fail("未登录");
+        StpUtil.checkLogin();
+        return Msg.success("登出成功");
     }
-
+    @SaCheckLogin
     @PostMapping("/updateInfo")
     public Msg updateInfo(@Validated(TotalValidation.UpdateUser.class) @RequestBody UpdateUserDTO updateUserDTO) throws Exception {
-        // 如果未登录，则登出
-        if (!StpUtil.isLogin()) {
-            return Msg.fail("未登录");
-        }
         return userService.updateInfo(updateUserDTO);
+    }
 
+    @SaCheckLogin
+    @GetMapping("/getUserInfo")
+    public Msg getUserInfo() throws Exception {
+        long userId = StpUtil.getLoginIdAsLong();
+        User user = userService.getById(userId);
+        return user == null ? Msg.notLegal("用户不存在") : Msg.success("获取用户信息成功", UserVO.convertToUserVO(user));
     }
 
 

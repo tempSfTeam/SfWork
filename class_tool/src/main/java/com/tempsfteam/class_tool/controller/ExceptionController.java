@@ -1,5 +1,6 @@
 package com.tempsfteam.class_tool.controller;
 
+import cn.dev33.satoken.exception.NotLoginException;
 import com.tempsfteam.class_tool.bean.Msg;
 import com.tempsfteam.class_tool.exception.ServiceException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -49,7 +50,6 @@ public class ExceptionController {
 
     @ExceptionHandler(Exception.class)
     public Msg handleException(Exception e){
-//        e.printStackTrace();
         return Msg.fail("服务器异常，请稍后再试!");
     }
 
@@ -77,6 +77,12 @@ public class ExceptionController {
             }
         }
         return Msg.fail("请求参数不完整或有误");
+    }
+
+    @ExceptionHandler({NotLoginException.class})
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Msg notLoginExceptionExceptionHandler(NotLoginException e) {
+        return Msg.fail(e.getMessage());
     }
 
 }
