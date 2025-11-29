@@ -4,9 +4,9 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.tempsfteam.class_tool.entity.ClasseToCourse;
 
 /**
- * @author 21983
- * @description 针对表【classe_to_course】的数据库操作Service
- * @createDate 2024-09-10 14:42:23
+ * @author hypocodeemia
+ * @description 针对表【form_to_course】的数据库操作Service
+ * @createDate 2024-09-12 17:50:55
  */
 public interface ClasseToCourseService extends IService<ClasseToCourse> {
 

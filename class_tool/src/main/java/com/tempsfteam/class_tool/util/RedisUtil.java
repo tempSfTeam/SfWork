@@ -1,5 +1,8 @@
 package com.tempsfteam.class_tool.util;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Component;
@@ -8,6 +11,7 @@ import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -23,11 +27,33 @@ public class RedisUtil {
 
     private static RedisTemplate<String, Object> redisTemplate;
 
+    // LoadingCache:缓存redis中的sorted set结构数据(一整个)
+    private LoadingCache<String, Object> sortedSetCache;
+
+
     @PostConstruct
     public void init() {
         // 将注入的实例变量赋值给静态变量
         redisTemplate = redisTemplateFromConfig;
+        sortedSetCache = CacheBuilder.newBuilder()
+                .expireAfterWrite(10, TimeUnit.SECONDS)
+                .build(new CacheLoader<String, Object>() {
+                    @Override
+                    public Object load(String key) throws Exception {
+                        return getSortedSetWithScores(key);
+                    }
+                });
     }
+
+    public Object getValueFromCache(String key) {
+        try {
+            return sortedSetCache.get(key);
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     /**
      *  放入缓存
      * @param key key
@@ -181,7 +207,6 @@ public class RedisUtil {
      * @param key map中的键
      * @return map中的值
      */
-    @Deprecated
     public Object getMap(String mapKey, String key){
         return redisTemplateFromConfig.opsForHash().get(mapKey, key);
     }
@@ -297,6 +322,26 @@ public class RedisUtil {
         return tuples.stream().collect(Collectors.toMap(ZSetOperations.TypedTuple::getValue, tuple -> tuple.getScore()!= null? tuple.getScore() : 0.0));
     }
 
+    public Map<Object, Double> getSortedSetWithScores(String key) {
+        ZSetOperations<String, Object> zSetOps = redisTemplateFromConfig.opsForZSet();
+        // 获取有序集合中指定范围内的成员及其分数的集合，按照分数从高到低排序。
+        Set<ZSetOperations.TypedTuple<Object>> tuples = zSetOps.rangeWithScores(key, 0, - 1);
+        if (tuples == null) {
+            return null;
+        }
+        // 将成员及其分数的集合转换为 Map，使用成员作为键，分数作为值。
+        // 如果分数为 null，则使用默认值 0.0。
+        return tuples.stream().collect(Collectors.toMap(ZSetOperations.TypedTuple::getValue, tuple -> tuple.getScore()!= null? tuple.getScore() : 0.0));
+    }
+
+    /**
+     * 有序集合中的元素分数增加1
+     * @param hashKey 有序集合的键
+     * @param key 元素的键
+     */
+    public void hashIncrement(String hashKey, String key) {
+        redisTemplateFromConfig.opsForHash().increment(hashKey, key, 1);
+    }
 }
 
 

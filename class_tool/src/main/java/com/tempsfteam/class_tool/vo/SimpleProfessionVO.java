@@ -10,8 +10,9 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class SimpleSection {
-    private Integer sectionId;
+public class SimpleProfessionVO {
+    private Integer professionId;
 
-    private String name;
+    private String professionName;
+
 }

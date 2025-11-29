@@ -13,6 +13,8 @@ public class RedisConst {
 
     public static final String FILE_PERMISSION_KEY = "file_permission:";
 
+    public static final String FILE_CLICK_COUNT_KEY = "file_click_count";
+
     /**
      * 验证码有效期（分钟）
      */

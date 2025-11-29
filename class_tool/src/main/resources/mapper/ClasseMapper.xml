@@ -8,9 +8,25 @@
         <id property="classeId" column="classe_id" jdbcType="INTEGER"/>
         <result property="name" column="name" jdbcType="VARCHAR"/>
         <result property="schoolId" column="school_id" jdbcType="INTEGER"/>
+        <result property="grade" column="grade" jdbcType="VARCHAR"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        classe_id,name,school_id
+        classe_id,name,school_id,grade
     </sql>
+
+    <!-- 获取符合条件的班级 -->
+    <select id="getClasseByCondition" resultType="com.tempsfteam.class_tool.entity.Classe">
+        SELECT c.*
+        FROM classe c
+        <where>
+            school_id = #{schoolId}
+            <if test="searchStr!= null and searchStr!= ''">
+                AND c.name LIKE CONCAT('%', #{searchStr}, '%')
+            </if>
+            <if test="grade!= null and grade!= ''">
+                AND c.grade = #{grade}
+            </if>
+        </where>
+    </select>
 </mapper>

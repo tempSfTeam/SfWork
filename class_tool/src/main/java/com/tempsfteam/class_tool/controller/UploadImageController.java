@@ -1,5 +1,6 @@
 package com.tempsfteam.class_tool.controller;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import com.tempsfteam.class_tool.bean.Msg;
 import com.tempsfteam.class_tool.util.FileUtil;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.util.UUID;
 
+// TODO:目前完全没用处，后面删了
 /**
  * @author : IMG,hypocodeemia
  * @create : 2024/7/16
@@ -32,6 +34,7 @@ public class UploadImageController {
      * @return 图片链接
      */
     @PostMapping("/upload")
+    @SaCheckLogin
     public Msg uploadImage(MultipartFile image, Integer type) throws Exception{
         if(image==null){
             return Msg.fail("参数image异常");

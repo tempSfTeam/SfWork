@@ -12,8 +12,160 @@
         <result property="managerId" column="manager_id" jdbcType="INTEGER"/>
     </resultMap>
 
+    <resultMap id="courseAllowanceResultMap" type="com.tempsfteam.class_tool.vo.CourseAllowanceVO">
+        <id property="userId" column="user_id"/>
+        <result property="userName" column="user_name"/>
+        <collection property="simpleCourseVOList" ofType="com.tempsfteam.class_tool.vo.SimpleCourseVO">
+            <id property="courseId" column="course_id"/>
+            <result property="courseName" column="course_name"/>
+        </collection>
+    </resultMap>
+
+    <resultMap id="courseConnectionResultMap" type="com.tempsfteam.class_tool.vo.CourseConnectionVO">
+        <id property="courseId" column="course_id" jdbcType="INTEGER"/>
+        <result property="courseName" column="course_name" jdbcType="VARCHAR"/>
+        <result property="icon" column="icon" jdbcType="VARCHAR"/>
+        <collection property="simpleProfessionVOList" ofType="com.tempsfteam.class_tool.vo.SimpleProfessionVO">
+            <id property="professionId" column="profession_id" jdbcType="INTEGER"/>
+            <result property="professionName" column="profession_name" jdbcType="VARCHAR"/>
+        </collection>
+    </resultMap>
+
+
     <sql id="Base_Column_List">
         course_id,name,description,
         icon,manager_id
     </sql>
+
+    <select id="getCourseVOListByUserIdAndProfessionId" resultType="com.tempsfteam.class_tool.vo.CourseVO">
+        SELECT DISTINCT c.course_id, c.name, c.icon
+        FROM course c
+        JOIN user_to_course utc ON c.course_id = utc.course_id
+        JOIN course_to_profession ctp ON c.course_id = ctp.course_id
+        <where>
+            utc.user_id = #{userId}
+            <if test="professionId > 0">
+                AND ctp.profession_id = #{professionId}
+            </if>
+            <if test="searchStr!= null and searchStr!= ''">
+                AND c.name LIKE CONCAT('%', #{searchStr}, '%')
+            </if>
+        </where>
+    </select>
+
+
+    <select id="getCourseListByManagerIdAndProfessionId" resultType="com.tempsfteam.class_tool.vo.CourseVO">
+        SELECT DISTINCT c.course_id, c.name, c.icon
+        FROM course c
+        LEFT JOIN course_to_profession ctp ON c.course_id = ctp.course_id
+        <where>
+            c.manager_id = #{managerId}
+            <if test="professionId > 0">
+                AND ctp.profession_id = #{professionId}
+            </if>
+            <if test="searchStr!= null and searchStr!= ''">
+                AND c.name LIKE CONCAT('%', #{searchStr}, '%')
+            </if>
+        </where>
+    </select>
+
+
+    <select id="getAllCourseVOListByProfessionId" resultType="com.tempsfteam.class_tool.vo.CourseVO">
+        SELECT DISTINCT c.course_id, c.name, c.icon
+        FROM course c
+        LEFT JOIN course_to_profession ctp ON c.course_id = ctp.course_id
+        <where>
+            <if test="professionId > 0">
+                ctp.profession_id = #{professionId}
+            </if>
+            <if test="searchStr!= null and searchStr!= ''">
+                AND c.name LIKE CONCAT('%', #{searchStr}, '%')
+            </if>
+        </where>
+    </select>
+
+
+    <select id="getCourseTypePreference" resultType="Integer">
+        SELECT DISTINCT p.course_type_id
+        FROM profession p
+                 JOIN course_to_profession ctp ON p.profession_id = ctp.profession_id
+                 JOIN user_to_course utc ON ctp.course_id = utc.course_id
+        WHERE utc.user_id = #{userId}
+    </select>
+
+
+    <select id="getCoursesByCourseTypeIds" resultType="com.tempsfteam.class_tool.entity.Course">
+        SELECT distinct c.*
+        FROM course c
+        JOIN course_to_profession cp ON c.course_id = cp.course_id
+        JOIN profession p ON cp.profession_id = p.profession_id
+        WHERE p.course_type_id IN
+        <foreach collection="courseTypeIds" item="courseTypeId" open="(" separator="," close=")">
+            #{courseTypeId}
+        </foreach>;
+    </select>
+
+    <!-- 获取符合条件的用户 -->
+    <select id="getUserIdsByCondition" resultType="Long">
+        SELECT user_id
+        FROM user
+        WHERE role = #{role}
+        <if test="searchType == 1">
+            AND user_id = #{searchStr}
+        </if>
+        <if test="searchType == 2">
+            AND name LIKE CONCAT('%', #{searchStr}, '%')
+        </if>
+    </select>
+
+    <!-- 根据用户 ID 列表获取课程信息 -->
+    <select id="getUserCourseAllowance" resultMap="courseAllowanceResultMap">
+        SELECT u.user_id AS user_id, u.name AS user_name, c.course_id AS course_id, c.name AS course_name
+        FROM  user u
+        LEFT JOIN user_to_course utc ON u.user_id = utc.user_id
+        LEFT JOIN course c ON utc.course_id = c.course_id
+        WHERE u.user_id IN
+        <foreach collection="userIds" item="userId" open="(" separator="," close=")">
+            #{userId}
+        </foreach>
+    </select>
+
+
+    <select id="getSimpleCourseVO" resultType="com.tempsfteam.class_tool.vo.SimpleCourseVO">
+        SELECT course_id, name AS course_name FROM course;
+    </select>
+
+    <select id="checkIsAbleToManageCourse" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM user u
+                 JOIN role_to_permission rtp ON u.role = rtp.role_id
+                 JOIN permission p ON rtp.permission_id = p.permission_id
+        WHERE u.user_id = #{userId}
+          AND p.description IN ('course.update', 'course.adminUpdate')
+    </select>
+
+
+    <!-- 获取符合条件的课程 -->
+    <select id="getCourseIdsByCondition" resultType="Integer">
+        SELECT c.course_id
+        FROM course c
+        <where>
+            <if test="searchStr!= null and searchStr!= ''">
+                c.name LIKE CONCAT('%', #{searchStr}, '%')
+            </if>
+        </where>
+    </select>
+
+
+    <select id="getCourseConnection" resultMap="courseConnectionResultMap">
+        SELECT c.course_id AS course_id,c.name AS course_name,c.icon AS icon,p.profession_id AS profession_id,p.name AS profession_name
+        FROM course c
+        LEFT JOIN course_to_profession ctp ON c.course_id = ctp.course_id
+        LEFT JOIN profession p ON p.profession_id = ctp.profession_id
+        WHERE c.course_id IN
+        <foreach collection="courseIds" item="courseId" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </select>
+
 </mapper>

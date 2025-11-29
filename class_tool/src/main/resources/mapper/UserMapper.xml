@@ -22,4 +22,10 @@
         password,create_time,phone,
         email,role,classId,schoolId
     </sql>
+    <select id="getAllUserByRole" resultType="com.tempsfteam.class_tool.entity.User">
+        select user_id,name,avatar,
+               phone,email,role,class_id,school_id
+        from user
+        where role = #{role}
+    </select>
 </mapper>

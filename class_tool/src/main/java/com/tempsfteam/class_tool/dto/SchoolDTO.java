@@ -16,3 +16,4 @@ public class SchoolDTO {
 
     private String name;
 }
+

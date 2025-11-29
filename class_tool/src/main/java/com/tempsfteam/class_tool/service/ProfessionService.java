@@ -2,7 +2,9 @@ package com.tempsfteam.class_tool.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.tempsfteam.class_tool.bean.Msg;
+import com.tempsfteam.class_tool.bean.UserData;
 import com.tempsfteam.class_tool.dto.ProfessionDTO;
+import com.tempsfteam.class_tool.dto.SortDTO;
 import com.tempsfteam.class_tool.entity.Profession;
 
 /**
@@ -27,16 +29,37 @@ public interface ProfessionService extends IService<Profession> {
     Msg deleteProfession(Integer professionId);
 
     /**
-     * 更新课程科目基础信息
+     * 更新课程科目基础信息(不包含sort)
      * @param professionDTO  professionDTO
      * @return               Msg
      */
     Msg updateProfessionInfo(ProfessionDTO professionDTO);
 
     /**
+     * 更新sort
+     * @param sortDTO   sortDTO
+     * @return          Msg
+     */
+    Msg updateSort(SortDTO sortDTO);
+
+    /**
      * 获取全部课程科目
      * @return          Msg
      */
     Msg listAllProfession();
+
+    /**
+     * 获取指定学习对象的课程科目
+     * @param courseTypeId  学习对象id
+     * @return              Msg
+     */
+    Msg listByCourseTypeId(Integer courseTypeId);
+
+    /**
+     * 结合用户的权限permission以及被授予的课程 去获取课程科目
+     * @return          Msg
+     */
+    Msg listPreferenceByCourseTypeId(Integer courseTypeId, UserData userData);
+
 }
 

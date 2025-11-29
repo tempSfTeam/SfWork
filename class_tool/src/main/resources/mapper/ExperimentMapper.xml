@@ -16,13 +16,8 @@
 
     <select id="selectFileByExperimentIdAndResourceType" resultMap="com.tempsfteam.class_tool.mapper.FileMapper.BaseResultMap">
         SELECT
-            f.id, f.resource_type, f.experiment_id,
-            CONCAT((
-                       CASE
-                           WHEN file_type = 0 THEN '/pdf/'
-                           WHEN file_type = 1 THEN '/video/'
-                           END
-                       ),f.file_name) AS file_name
+            f.file_id, f.resource_type, f.experiment_id,
+            f.file_type, f.file_name
         FROM file f
         WHERE experiment_id = #{experimentId} AND resource_type = #{resourceType}
     </select>
@@ -33,6 +28,13 @@
                  JOIN experiment e
                       ON utc.course_id = e.course_id
         WHERE e.experiment_id = #{experimentId}
+    </select>
+    <select id="selectExperimentInfo" resultType="com.tempsfteam.class_tool.vo.ExperimentInfoVO">
+        SELECT e.*, c.name as courseName, c.description as course_description,
+               c.icon as course_icon
+        FROM experiment e
+                 JOIN course c
+                      ON e.experiment_id = #{experimentId} AND e.course_id = c.course_id
     </select>
 
 </mapper>

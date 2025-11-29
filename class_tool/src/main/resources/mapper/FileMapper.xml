@@ -5,7 +5,7 @@
 <mapper namespace="com.tempsfteam.class_tool.mapper.FileMapper">
 
     <resultMap id="BaseResultMap" type="com.tempsfteam.class_tool.entity.File">
-        <id property="id" column="id" jdbcType="INTEGER"/>
+        <id property="fileId" column="file_id" jdbcType="INTEGER"/>
         <result property="fileName" column="file_name" jdbcType="VARCHAR"/>
         <result property="fileType" column="file_type" jdbcType="INTEGER"/>
         <result property="resourceType" column="resource_type" jdbcType="INTEGER"/>
@@ -17,7 +17,6 @@
         resource_type,experiment_id
     </sql>
 
-
     <select id="selectFileByUserIdAndFileName" resultMap="BaseResultMap">
         SELECT *
         FROM (SELECT * FROM user_to_course WHERE user_id = #{userId}) utc
@@ -25,12 +24,21 @@
                       ON utc.course_id = e.course_id
                  JOIN file f
                       ON e.experiment_id = f.experiment_id
-        where f.file_name = #{fileName}
+        where REGEXP_SUBSTR(f.file_name, '[^.]+', 1) = #{fileName}
     </select>
 
     <select id="selectOneByFileNameFiles" resultMap="BaseResultMap">
         SELECT *
         FROM file
-        WHERE file_name = #{fileName} Limit 1
+        WHERE REGEXP_SUBSTR(file_name, '[^.]+', 1) = #{fileName} Limit 1
+    </select>
+    <select id="selectOneByFileNameAndManagerId" resultType="com.tempsfteam.class_tool.entity.File">
+        SELECT f.*
+        FROM (SELECT * FROM file WHERE REGEXP_SUBSTR(file_name, '[^.]+', 1) = #{fileName}) f
+                 JOIN experiment e
+                      ON f.experiment_id = e.experiment_id
+                 JOIN course c
+                      ON e.course_id = c.course_id
+        WHERE c.manager_id = #{managerId}
     </select>
 </mapper>

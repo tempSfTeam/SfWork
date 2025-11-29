@@ -18,8 +18,8 @@ import javax.servlet.http.HttpServletRequest;
 @Component
 public class LogAspect {
 
-    private final Logger infoLogger = LoggerFactory.getLogger("com.rdc.info");
-    private final Logger errorLogger = LoggerFactory.getLogger("com.rdc.error");
+    private final Logger infoLogger = LoggerFactory.getLogger("com.tempsfteam.class_tool.info");
+    private final Logger errorLogger = LoggerFactory.getLogger("com.tempsfteam.class_tool.error");
 
     @Pointcut("execution(* com.tempsfteam.class_tool.controller.*.*(..))")
     public void log() {}

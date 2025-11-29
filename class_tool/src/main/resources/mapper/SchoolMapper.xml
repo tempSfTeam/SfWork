@@ -12,4 +12,16 @@
     <sql id="Base_Column_List">
         school_id,name
     </sql>
+
+
+    <!-- 获取符合条件的学校 -->
+    <select id="getSchoolByCondition" resultType="com.tempsfteam.class_tool.entity.School">
+        SELECT s.*
+        FROM school s
+        <where>
+            <if test="searchStr!= null and searchStr!= ''">
+                s.name LIKE CONCAT('%', #{searchStr}, '%')
+            </if>
+        </where>
+    </select>
 </mapper>

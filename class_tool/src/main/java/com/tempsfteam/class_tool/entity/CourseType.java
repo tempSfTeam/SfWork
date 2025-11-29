@@ -15,12 +15,15 @@ import java.io.Serializable;
  */
 @TableName(value ="course_type")
 @Data
-public class CourseType implements Serializable {
+public class
+CourseType implements Serializable {
     @TableId(type = IdType.AUTO)
     private Integer courseTypeId;
 
     // unique
     private String name;
+
+    private Integer sort;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;

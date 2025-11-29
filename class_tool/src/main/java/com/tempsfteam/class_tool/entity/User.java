@@ -19,7 +19,7 @@ public class User implements Serializable {
     /**
      *
      */
-    @TableId(type = IdType.NONE)
+    @TableId(type = IdType.AUTO)
     private Long userId;
 
     /**

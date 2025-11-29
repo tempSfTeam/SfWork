@@ -13,4 +13,10 @@
     <sql id="Base_Column_List">
         id,course_id,profession_id
     </sql>
+
+
+    <select id="getConnectionCount" resultType="int">
+        SELECT COUNT(*) FROM course_to_profession WHERE  course_id = #{courseId}
+    </select>
+
 </mapper>

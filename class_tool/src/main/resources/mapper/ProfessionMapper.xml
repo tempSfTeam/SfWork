@@ -8,9 +8,35 @@
         <id property="professionId" column="profession_id" jdbcType="INTEGER"/>
         <result property="courseTypeId" column="course_type_id" jdbcType="INTEGER"/>
         <result property="name" column="name" jdbcType="VARCHAR"/>
+        <result property="sort" column="sort" jdbcType="INTEGER"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        profession_id,course_type_id,name
+        profession_id,course_type_id,name,sort
     </sql>
+
+
+    <select id="checkAnyCourse" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM course_to_profession WHERE profession_id = #{professionId}
+    </select>
+
+    <select id="getProfessionPreferenceByCourseTypeId" resultType="com.tempsfteam.class_tool.entity.Profession">
+        SELECT DISTINCT p.profession_id,p.course_type_id,p.name,p.sort
+        FROM profession p
+                 JOIN course_to_profession ctp ON p.profession_id = ctp.profession_id
+                 JOIN user_to_course utc ON ctp.course_id = utc.course_id
+        WHERE utc.user_id = #{userId}
+          AND p.course_type_id = #{courseTypeId}
+    </select>
+
+
+    <select id="getProfessionForCourseManager" resultType="com.tempsfteam.class_tool.entity.Profession">
+        SELECT DISTINCT p.profession_id,p.course_type_id,p.name,p.sort
+        FROM profession p
+                 JOIN course_to_profession ctp ON p.profession_id = ctp.profession_id
+                 JOIN course c ON c.course_id = ctp.course_id
+        WHERE c.manager_id = #{userId}
+          AND p.course_type_id = #{courseTypeId}
+    </select>
+
 </mapper>

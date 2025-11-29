@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tempsfteam.class_tool.mapper.RoleToPermissionMapper">
+
+    <resultMap id="BaseResultMap" type="com.tempsfteam.class_tool.entity.RoleToPermission">
+            <id property="mappingId" column="mapping_id" jdbcType="INTEGER"/>
+            <result property="roleId" column="role_id" jdbcType="INTEGER"/>
+            <result property="permissionId" column="permission_id" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        mapping_id,role_id,permission_id
+    </sql>
+    <select id="getRoleToPermissionList" resultType="java.util.Map">
+        SELECT r.role_id, p.description
+        FROM role r
+        JOIN role_to_permission rp ON r.role_id = rp.role_id
+        JOIN permission p ON rp.permission_id = p.permission_id
+    </select>
+
+    <select id="getRoleToPermissionListByModule" resultType="map" parameterType="map">
+        SELECT p.module, p.description
+        FROM permission p
+        JOIN role_to_permission rp ON p.permission_id = rp.permission_id
+        JOIN role r ON rp.role_id = r.role_id
+        WHERE r.role_id = #{roleId}
+        AND p.module IN
+        <foreach item="module" collection="list" open="(" separator="," close=")">
+            #{module}
+        </foreach>
+    </select>
+
+</mapper>

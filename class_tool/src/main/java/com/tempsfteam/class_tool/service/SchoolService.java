@@ -1,5 +1,6 @@
 package com.tempsfteam.class_tool.service;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.tempsfteam.class_tool.bean.Msg;
 import com.tempsfteam.class_tool.dto.SchoolDTO;
@@ -36,7 +37,7 @@ public interface SchoolService extends IService<School> {
      * 获取全部学校
      * @return          Msg
      */
-    Msg listAllSchool();
+    Msg listAllSchool(Page<School> pageDTO, String searchStr);
 
 
 }

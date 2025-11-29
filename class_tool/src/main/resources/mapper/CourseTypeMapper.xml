@@ -7,9 +7,33 @@
     <resultMap id="BaseResultMap" type="com.tempsfteam.class_tool.entity.CourseType">
         <id property="courseTypeId" column="course_type_id" jdbcType="INTEGER"/>
         <result property="name" column="name" jdbcType="VARCHAR"/>
+        <result property="sort" column="sort" jdbcType="INTEGER"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        course_type_id,name
+        course_type_id,name,sort
     </sql>
+
+    <select id="checkAnyProfession" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM profession WHERE course_type_id = #{courseTypeId}
+    </select>
+
+
+    <select id="getCourseTypePreference" resultType="Integer">
+        SELECT DISTINCT p.course_type_id
+        FROM profession p
+                 JOIN course_to_profession ctp ON p.profession_id = ctp.profession_id
+                 JOIN user_to_course utc ON ctp.course_id = utc.course_id
+        WHERE utc.user_id = #{userId}
+    </select>
+
+
+    <select id="getCourseTypeForCourseManager" resultType="Integer">
+        SELECT DISTINCT p.course_type_id
+        FROM course c
+                 JOIN course_to_profession ctp ON c.course_id = ctp.course_id
+                 JOIN profession p ON ctp.profession_id = p.profession_id
+        WHERE c.manager_id = #{userId}
+    </select>
+
 </mapper>

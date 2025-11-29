@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tempsfteam.class_tool.mapper.FilePicMapper">
+
+    <resultMap id="BaseResultMap" type="com.tempsfteam.class_tool.entity.FilePic">
+            <id property="id" column="id" jdbcType="INTEGER"/>
+            <result property="filePicName" column="file_pic_name" jdbcType="VARCHAR"/>
+            <result property="fileId" column="file_id" jdbcType="INTEGER"/>
+            <result property="fileName" column="file_name" jdbcType="VARCHAR" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,file_pic_name,file_id
+    </sql>
+
+    <select id="selectByFileId" resultMap="BaseResultMap">
+        select fp.id, fp.file_pic_name, fp.file_id, f.file_name
+        from file_pic fp
+        join file f on f.file_id = fp.file_id
+        where f.file_id = #{fileId}
+    </select>
+</mapper>

@@ -4,7 +4,9 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 
@@ -13,6 +15,8 @@ import java.io.Serializable;
  * @TableName user_to_course
  */
 @TableName(value ="user_to_course")
+@NoArgsConstructor
+@AllArgsConstructor
 @Data
 public class UserToCourse implements Serializable {
     @TableId(type = IdType.AUTO)
@@ -24,4 +28,8 @@ public class UserToCourse implements Serializable {
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;
+    public UserToCourse(Long userId, Integer courseId) {
+        this.userId = userId;
+        this.courseId = courseId;
+    }
 }

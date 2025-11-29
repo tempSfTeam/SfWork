@@ -17,4 +17,27 @@ public interface FileService extends IService<File> {
      * @return 是否有权限
      */
     Boolean checkUserPermission(String fileName, Long userId);
+
+    /**
+     * 检查用户是否有权限访问文件
+     * @param fileId 文件id
+     * @param userId 用户id
+     * @return 是否有权限
+     */
+    Boolean checkUserPermission(Integer fileId, Long userId);
+
+    /**
+     * 根据实验id删除文件
+     * @param experimentId 实验id
+     * @return 是否删除成功
+     */
+    Boolean deleteFileByExperimentId(Integer experimentId);
+
+    /**
+     * 根据文件id删除文件
+     * @param id 文件id
+     * @return 是否删除成功
+     */
+    Boolean deleteFileById(Integer id);
 }
+

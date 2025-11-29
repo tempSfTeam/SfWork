@@ -1,5 +1,6 @@
 package com.tempsfteam.class_tool.service.impl;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tempsfteam.class_tool.bean.Msg;
 import com.tempsfteam.class_tool.dto.SchoolDTO;
@@ -36,7 +37,7 @@ public class SchoolServiceImpl extends ServiceImpl<SchoolMapper, School>
     }
 
     @Override
-    public Msg listAllSchool() {
-        return Msg.success("以下为全部的学校",this.list());
+    public Msg listAllSchool(Page<School> pageDTO, String searchStr) {
+        return Msg.success("以下为全部的学校",this.getBaseMapper().getSchoolByCondition(pageDTO,searchStr));
     }
 }

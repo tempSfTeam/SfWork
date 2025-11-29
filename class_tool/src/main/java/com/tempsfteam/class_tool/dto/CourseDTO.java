@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 
 /**
  * @author hypocodeemia
@@ -20,5 +22,21 @@ public class CourseDTO {
 
     private String icon;
 
-    private Integer managerId;
+    private Long managerId;
+
+    private List<Integer> professionIds;
+
+    public CourseDTO(Integer courseId,String name, String description, Long managerId) {
+        this.courseId = courseId;
+        this.name = name;
+        this.description = description;
+        this.managerId = managerId;
+    }
+
+    public CourseDTO(String name, String description, Long managerId, List<Integer> professionIds) {
+        this.name = name;
+        this.description = description;
+        this.managerId = managerId;
+        this.professionIds = professionIds;
+    }
 }

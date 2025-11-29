@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.tempsfteam.class_tool.entity.Experiment;
 import com.tempsfteam.class_tool.entity.File;
 
+import com.tempsfteam.class_tool.vo.ExperimentInfoVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -34,6 +35,12 @@ public interface ExperimentMapper extends BaseMapper<Experiment> {
      */
     List<Experiment> selectExperimentByUserIdAndExperimentId(@Param("userId") Long userId, @Param("experimentId") Integer experimentId);
 
+    /**
+     * 根据实验id查询实验信息
+     * @param experimentId 实验id
+     * @return 实验信息
+     */
+    ExperimentInfoVO selectExperimentInfo(@Param("experimentId") Integer experimentId);
 }
 
 

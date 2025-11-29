@@ -1,6 +1,7 @@
 package com.tempsfteam.class_tool.controller;
 
 import cn.dev33.satoken.exception.NotLoginException;
+import cn.dev33.satoken.exception.NotPermissionException;
 import cn.dev33.satoken.exception.NotRoleException;
 import com.tempsfteam.class_tool.bean.Msg;
 import com.tempsfteam.class_tool.exception.ServiceException;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
 
@@ -30,7 +32,7 @@ public class ExceptionController {
 
     @ExceptionHandler(ServiceException.class)
     public Msg handleServiceException(ServiceException e){
-//        e.printStackTrace();
+        //e.printStackTrace();
         return Msg.fail(e.getMsg());
     }
 
@@ -51,6 +53,7 @@ public class ExceptionController {
 
     @ExceptionHandler(Exception.class)
     public Msg handleException(Exception e){
+        e.printStackTrace();
         return Msg.fail("服务器异常，请稍后再试!");
     }
 
@@ -90,6 +93,17 @@ public class ExceptionController {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Msg notRoleExceptionExceptionHandler(NotRoleException e) {
         return Msg.notPermitted("您没有权限进行此操作");
+    }
+
+    @ExceptionHandler({NotPermissionException.class})
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Msg notPermissionExceptionHandler(NotPermissionException e) {
+        return Msg.notPermitted("您没有权限进行此操作");
+    }
+    @ExceptionHandler({MethodArgumentTypeMismatchException.class})
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Msg methodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e) {
+        return Msg.fail("参数转换错误");
     }
 
 }

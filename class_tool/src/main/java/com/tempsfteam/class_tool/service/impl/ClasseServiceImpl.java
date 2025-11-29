@@ -1,6 +1,7 @@
 package com.tempsfteam.class_tool.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tempsfteam.class_tool.bean.Msg;
 import com.tempsfteam.class_tool.dto.ClasseDTO;
@@ -19,16 +20,16 @@ public class ClasseServiceImpl extends ServiceImpl<ClasseMapper, Classe>
         implements ClasseService {
 
     @Override
-    public Msg addClasse(String name, Integer schoolId) {
-        // 1.检查是否存在相同学校下相同名称的班级
+    public Msg addClasse(String name, Integer schoolId,String grade) {
+        // 1.检查是否存在相同学校下相同名称,相同年级的班级
         LambdaQueryWrapper<Classe> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Classe::getSchoolId, schoolId).eq(Classe::getName, name);
+        queryWrapper.eq(Classe::getSchoolId, schoolId).eq(Classe::getName, name).eq(Classe::getGrade,grade);
         long count = this.count(queryWrapper);
         if (count > 0) {
-            return Msg.fail("该学校下已存在同名班级，添加班级失败");
+            return Msg.fail("该学校下已存在同名,同年级的班级，添加班级失败");
         }
         // 2.进行实际的添加
-        Classe form = new Classe(name,schoolId);
+        Classe form = new Classe(name,schoolId,grade);
         boolean isSaved = this.save(form);
         return isSaved ? Msg.success("添加班级成功",form.getClasseId(),null) : Msg.fail("添加班级失败");
     }
@@ -45,14 +46,10 @@ public class ClasseServiceImpl extends ServiceImpl<ClasseMapper, Classe>
     }
 
     @Override
-    public Msg listClasseBySchoolId(Integer schoolId) {
-        return Msg.success("以下是目标学校的所有班级",this.getBaseMapper().getClasseListBySchoolId(schoolId));
+    public Msg listClasseBySchoolId(Page<Classe> pageDTO, String searchStr, Integer schoolId, String grade) {
+        return Msg.success("以下是目标学校的所有班级",this.getBaseMapper().getClasseByCondition(pageDTO,searchStr,schoolId,grade));
     }
 
-    @Override
-    public Msg listClasseByCourseId(Integer courseId) {
-        return Msg.success("以下是目标课程的所有班级",this.getBaseMapper().getClasseListByCourseId(courseId));
-    }
 }
 
 

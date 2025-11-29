@@ -23,20 +23,24 @@ public class Classe implements Serializable {
 
     private Integer schoolId;
 
+    private String grade;
+
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;
 
     public Classe() {
     }
 
-    public Classe(String name, Integer schoolId) {
+    public Classe(String name, Integer schoolId,String grade) {
         this.name = name;
         this.schoolId = schoolId;
+        this.grade = grade;
     }
 
     public Classe(ClasseDTO classeDTO) {
         this.classeId = classeDTO.getClasseId();
         this.name = classeDTO.getName();
         this.schoolId = classeDTO.getSchoolId();
+        this.grade = classeDTO.getGrade();
     }
 }

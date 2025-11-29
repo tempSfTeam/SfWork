@@ -26,7 +26,7 @@ public class Course implements Serializable {
 
     private String icon;
 
-    private Integer managerId;
+    private Long managerId;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;
@@ -34,7 +34,13 @@ public class Course implements Serializable {
     public Course() {
     }
 
-    public Course(String name, String description, String icon, Integer managerId) {
+    public Course(String name, String description,  Long managerId) {
+        this.name = name;
+        this.description = description;
+        this.managerId = managerId;
+    }
+
+    public Course(String name, String description, String icon, Long managerId) {
         this.name = name;
         this.description = description;
         this.icon = icon;

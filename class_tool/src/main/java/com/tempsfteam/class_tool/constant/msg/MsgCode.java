@@ -1,7 +1,7 @@
 package com.tempsfteam.class_tool.constant.msg;
 
 /**
- * @author HypoCodeEmia
+ * @author IMG
  */
 public enum MsgCode {
     /**

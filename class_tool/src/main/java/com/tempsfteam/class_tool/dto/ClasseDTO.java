@@ -16,4 +16,6 @@ public class ClasseDTO {
     private String name;
 
     private Integer schoolId;
+
+    private String grade;
 }

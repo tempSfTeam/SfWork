@@ -21,7 +21,7 @@ public class PopularCourseVO {
     private Integer click;
 
 
-    public PopularCourseVO(Course course, Double score) {
+    public PopularCourseVO(Course course,Double score) {
         this.courseId = course.getCourseId();
         this.name = course.getName();
         this.icon = course.getIcon();

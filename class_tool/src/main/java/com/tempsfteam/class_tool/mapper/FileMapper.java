@@ -22,7 +22,7 @@ public interface FileMapper extends BaseMapper<File> {
      * @param fileName 文件名
      * @return 文件列表
      */
-    List<File> selectFileByUserIdAndFileName(@Param("userId") Long userId, @Param("fileName") String fileName);
+    List<File> selectFileByUserIdAndFileName(@Param("userId") Long userId,@Param("fileName") String fileName);
 
     /**
      * 根据文件名查询文件
@@ -30,6 +30,14 @@ public interface FileMapper extends BaseMapper<File> {
      * @return 文件列表
      */
     File selectOneByFileNameFiles(@Param("fileName") String fileName);
+
+    /**
+     * 根据文件名和管理员id查询文件
+     * @param fileName 文件名
+     * @param managerId 管理员id
+     * @return 文件
+     */
+    File selectOneByFileNameAndManagerId(@Param("fileName") String fileName,@Param("managerId") Long managerId);
 }
 
 

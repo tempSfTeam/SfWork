@@ -23,6 +23,8 @@ public class Profession implements Serializable {
 
     private String name;
 
+    private Integer sort;
+
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;
 

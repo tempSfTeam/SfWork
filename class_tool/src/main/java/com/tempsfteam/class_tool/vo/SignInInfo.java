@@ -6,6 +6,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * @Description:
  * @Author: Zhan
@@ -24,10 +27,10 @@ public class SignInInfo {
      * 用户身份
      */
     private String userRole;
+    private Map<String, List<String>> permissionList;
 
     public void setUserRole(Integer userRole) {
         IdentityEnum identityEnum = IdentityEnum.fromValue(userRole);
         this.userRole = identityEnum.getUserRoleString();
     }
 }
-

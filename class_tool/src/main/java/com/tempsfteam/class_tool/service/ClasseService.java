@@ -1,5 +1,6 @@
 package com.tempsfteam.class_tool.service;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.tempsfteam.class_tool.bean.Msg;
 import com.tempsfteam.class_tool.dto.ClasseDTO;
@@ -15,9 +16,10 @@ public interface ClasseService extends IService<Classe> {
      * 添加班级
      * @param name      班级名字
      * @param schoolId  归属的学校的id
+     * @param grade     入学年份
      * @return          Msg
      */
-    Msg addClasse(String name, Integer schoolId);
+    Msg addClasse(String name, Integer schoolId,String grade);
 
     /**
      * 删除班级
@@ -38,14 +40,7 @@ public interface ClasseService extends IService<Classe> {
      * @param schoolId  学校id
      * @return          Msg
      */
-    Msg listClasseBySchoolId(Integer schoolId);
+    Msg listClasseBySchoolId(Page<Classe> pageDTO, String searchStr, Integer schoolId, String grade);
 
-    /**
-     * 获取某课程的全部班级
-     * @param courseId  课程id
-     * @return          Msg
-     */
-    Msg listClasseByCourseId(Integer courseId);
 }
-
 

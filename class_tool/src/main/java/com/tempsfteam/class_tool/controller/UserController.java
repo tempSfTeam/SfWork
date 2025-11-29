@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.tempsfteam.class_tool.bean.Msg;
 import com.tempsfteam.class_tool.bean.UserData;
 import com.tempsfteam.class_tool.dto.LoginDTO;
+import com.tempsfteam.class_tool.dto.UpdatePassDTO;
 import com.tempsfteam.class_tool.dto.UpdateUserDTO;
 import com.tempsfteam.class_tool.entity.User;
 import com.tempsfteam.class_tool.service.UserService;
@@ -48,24 +49,52 @@ public class UserController {
         return Msg.success("获取验证码成功", map);
     }
 
+    /**
+     * 登录
+     * @param loginDTO
+     * @return
+     * @throws IOException
+     */
     @PostMapping("/login")
     public Msg login(@RequestBody LoginDTO loginDTO) throws IOException {
         return userService.login(loginDTO);
     }
 
     @SaCheckLogin
+    @PostMapping("/updatePassword")
+    public Msg updatePassword(@Validated(TotalValidation.UpdatePassword.class) @RequestBody UpdatePassDTO updatePassDTO) throws Exception {
+        return userService.updatePassword(updatePassDTO);
+    }
+
+    /**
+     * 登出
+     * @return
+     */
+    @SaCheckLogin
     @PostMapping("/logout")
     public Msg logout() {
         // 如果已经登录，则登出
-        StpUtil.checkLogin();
+        StpUtil.logout();
         return Msg.success("登出成功");
     }
+
+    /**
+     * 更新用户信息
+     * @param updateUserDTO
+     * @return
+     * @throws Exception
+     */
     @SaCheckLogin
     @PostMapping("/updateInfo")
     public Msg updateInfo(@Validated(TotalValidation.UpdateUser.class) @RequestBody UpdateUserDTO updateUserDTO) throws Exception {
         return userService.updateInfo(updateUserDTO);
     }
 
+    /**
+     * 获取用户信息
+     * @return
+     * @throws Exception
+     */
     @SaCheckLogin
     @GetMapping("/getUserInfo")
     public Msg getUserInfo() throws Exception {
@@ -73,6 +102,7 @@ public class UserController {
         User user = userService.getById(userId);
         return user == null ? Msg.notLegal("用户不存在") : Msg.success("获取用户信息成功", UserVO.convertToUserVO(user));
     }
+
 
     // TODO: 测试用, 后续删除
     @GetMapping("/getToken")
@@ -90,3 +120,4 @@ public class UserController {
     }
 
 }
+

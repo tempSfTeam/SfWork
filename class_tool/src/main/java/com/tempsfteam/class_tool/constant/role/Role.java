@@ -4,6 +4,27 @@ package com.tempsfteam.class_tool.constant.role;
  * @author hypocodeemia
  */
 public class Role {
+
+    /**
+     * 学生
+     */
+    public static final int STUDENT_INT = 0;
+
+    /**
+     * 教师
+     */
+    public static final int TEACHER_INT = 1;
+
+    /**
+     * 课程管理员
+     */
+    public static final int COURSE_MANAGER_INT = 2;
+
+    /**
+     * 运维(超级管理员)
+     */
+    public static final int OPERATIONS_INT = 3;
+
     /**
      * 学生
      */
@@ -47,4 +68,3 @@ public class Role {
 
 
 }
-
