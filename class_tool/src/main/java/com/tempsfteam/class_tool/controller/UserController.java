@@ -1,5 +1,6 @@
 package com.tempsfteam.class_tool.controller;
 
+import cn.dev33.satoken.stp.StpUtil;
 import com.tempsfteam.class_tool.bean.Msg;
 import com.tempsfteam.class_tool.dto.LoginDTO;
 import com.tempsfteam.class_tool.service.UserService;
@@ -40,5 +41,17 @@ public class UserController {
     public Msg login(@RequestBody LoginDTO loginDTO) throws IOException {
         return userService.login(loginDTO);
     }
+
+    @PostMapping("/logout")
+    public Msg logout() {
+        // 如果已经登录，则登出
+        if (StpUtil.isLogin()) {
+            StpUtil.logout();
+            return Msg.success("登出成功");
+        }
+        return Msg.fail("未登录");
+    }
+
+
 
 }
