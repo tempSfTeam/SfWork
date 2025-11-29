@@ -48,7 +48,6 @@ public class CourseController {
         return courseService.getOne(courseId);
     }
 
-
     @GetMapping("/listPopularCourse")
     public Msg listPopularCourse(@RequestParam("number") Integer number){
         return courseService.listPopularCourse(number);

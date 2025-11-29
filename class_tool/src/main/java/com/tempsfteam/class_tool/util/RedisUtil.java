@@ -5,8 +5,10 @@ import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * @author : IMG
@@ -220,6 +222,11 @@ public class RedisUtil {
         zSetOps.remove(key, value);
     }
 
+    public Double getScoreFromSortedSet(String key, Object member) {
+        ZSetOperations<String, Object> zSetOps = redisTemplate.opsForZSet();
+        return zSetOps.score(key, member);
+    }
+
     /**
      * 创建浏览次数记录
      * @param key   sort set 的键，用于区分不同的有序集合
@@ -240,6 +247,7 @@ public class RedisUtil {
      * @param id    主键id等
      */
     public void plusClick(String key,Integer id) {
+
         ZSetOperations<String, Object> zSetOps = redisTemplate.opsForZSet();
         Double score = zSetOps.score(key, id);
         if (score != null) {
@@ -248,15 +256,23 @@ public class RedisUtil {
         }
     }
 
+
     /**
-     * 从指定键对应的 Redis 有序集合中获取前 limit 个高分数据
-     * @param key   键
-     * @param limit 要获取的数据数量
-     * @return 包含指定数量高分数据的 Set<Object>，其中 Object 是有序集合中存储的值的类型不确定
+     * 获取指定 Redis 有序集合中指定数量的成员及其分数。
+     * @param key   Redis 有序集合的键。
+     * @param limit 要获取的成员数量。
+     * @return 包含成员及其对应分数的 Map，如果没有找到任何成员则返回 null。
      */
-    public Set<Object> getTopDataByScore(String key, int limit) {
+    public Map<Object, Double> getTopMembersAndScores(String key, int limit) {
         ZSetOperations<String, Object> zSetOps = redisTemplate.opsForZSet();
-        return zSetOps.reverseRange(key, 0, limit - 1);
+        // 获取有序集合中指定范围内的成员及其分数的集合，按照分数从高到低排序。
+        Set<ZSetOperations.TypedTuple<Object>> tuples = zSetOps.reverseRangeWithScores(key, 0, limit - 1);
+        if (tuples == null) {
+            return null;
+        }
+        // 将成员及其分数的集合转换为 Map，使用成员作为键，分数作为值。
+        // 如果分数为 null，则使用默认值 0.0。
+        return tuples.stream().collect(Collectors.toMap(ZSetOperations.TypedTuple::getValue, tuple -> tuple.getScore()!= null? tuple.getScore() : 0.0));
     }
 
 }

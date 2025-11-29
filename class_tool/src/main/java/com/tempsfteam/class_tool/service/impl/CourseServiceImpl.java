@@ -7,6 +7,7 @@ import com.tempsfteam.class_tool.entity.Course;
 import com.tempsfteam.class_tool.mapper.CourseMapper;
 import com.tempsfteam.class_tool.service.CourseService;
 import com.tempsfteam.class_tool.util.RedisUtil;
+import com.tempsfteam.class_tool.vo.PopularCourseVO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -28,7 +30,7 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course>
     @Resource
     RedisUtil redisUtil;
 
-    private String redisKeyStr = "CourseClick";
+    private final String redisKeyStr = "CourseClick";
 
 
     @Override
@@ -107,15 +109,32 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course>
 
     @Override
     public Msg listPopularCourse(Integer number) {
-        Set<Object> topDataByScore = redisUtil.getTopDataByScore(redisKeyStr, number);
-        List<Integer> integerList = new ArrayList<>();
-        for (Object obj : topDataByScore) {
+        // 使用新方法获取热门课程 ID 和分数的映射
+        Map<Object, Double> topDataWithScores = redisUtil.getTopMembersAndScores(redisKeyStr, number);
+
+        // 将热门课程 ID 提取出来并存入列表
+        List<Integer> courseIdList = new ArrayList<>();
+        for (Object obj : topDataWithScores.keySet()) {
             if (obj instanceof Integer) {
-                integerList.add((Integer) obj);
+                courseIdList.add((Integer) obj);
             }
         }
-        return Msg.success("以下为热门课程",this.listByIds(integerList));
+
+        // 获取课程具体信息
+        List<Course> courses = this.listByIds(courseIdList);
+        List<PopularCourseVO> popularCourseVoS = new ArrayList<>();
+        // 处理成热门课程的VO
+        for (Course course : courses) {
+            Double score = topDataWithScores.get(course.getCourseId());
+            if (score!= null) {
+                // 转换
+                popularCourseVoS.add(new PopularCourseVO(course,score));
+            }
+        }
+
+        return Msg.success("以下为热门课程", popularCourseVoS);
     }
+
 
 }
 
