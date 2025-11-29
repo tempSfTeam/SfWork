@@ -18,15 +18,12 @@
         <spring-aop.version>2.6.1</spring-aop.version>
         <mybatis.version>2.1.1</mybatis.version>
         <mybatis-plus.version>3.5.2</mybatis-plus.version>
+        <logback.version>1.2.11</logback.version> <!-- 添加 Logback 版本 -->
     </properties>
     <profiles>
         <profile>
             <!--本地测试环境-->
             <id>local</id>
-            <activation>
-                <!--默认开发环境-->
-                <activeByDefault>true</activeByDefault>
-            </activation>
             <properties>
                 <env>local</env>
             </properties>
@@ -41,6 +38,10 @@
         <profile>
             <!--发布版本-->
             <id>release</id>
+            <activation>
+                <!--默认开发环境-->
+                <activeByDefault>true</activeByDefault>
+            </activation>
             <properties>
                 <env>release</env>
             </properties>
@@ -118,6 +119,30 @@
             <artifactId>fastjson2</artifactId>
             <version>${fastjson.version}</version>
         </dependency>
+        <!--aop-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+        <!--        日志-->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-access</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>${logback.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
     </dependencies>
     <dependencyManagement>
         <dependencies>
@@ -149,7 +174,6 @@
                 <version>${spring-boot.version}</version>
                 <configuration>
                     <mainClass>com.rdc.CloudClassroomApplication</mainClass>
-                    <skip>true</skip>
                 </configuration>
                 <executions>
                     <execution>
