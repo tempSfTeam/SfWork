@@ -8,8 +8,6 @@ import com.tempsfteam.class_tool.mapper.CourseMapper;
 import com.tempsfteam.class_tool.service.CourseService;
 import com.tempsfteam.class_tool.util.RedisUtil;
 import com.tempsfteam.class_tool.vo.PopularCourseVO;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,7 +15,6 @@ import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * @author hypocodeemia

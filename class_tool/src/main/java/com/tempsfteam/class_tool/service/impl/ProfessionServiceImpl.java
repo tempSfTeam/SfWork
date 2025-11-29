@@ -49,3 +49,4 @@ public class ProfessionServiceImpl extends ServiceImpl<ProfessionMapper, Profess
         return Msg.success("以下为全部的课程科目",this.list());
     }
 }
+

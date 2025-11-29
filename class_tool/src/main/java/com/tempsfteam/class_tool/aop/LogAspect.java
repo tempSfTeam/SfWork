@@ -21,7 +21,7 @@ public class LogAspect {
     private final Logger infoLogger = LoggerFactory.getLogger("com.rdc.info");
     private final Logger errorLogger = LoggerFactory.getLogger("com.rdc.error");
 
-    @Pointcut("execution(* com.rdc.controller.*.*(..))")
+    @Pointcut("execution(* com.tempsfteam.class_tool.controller.*.*(..))")
     public void log() {}
 
     @Before("log()")

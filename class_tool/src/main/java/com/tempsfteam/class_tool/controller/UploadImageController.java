@@ -3,11 +3,9 @@ package com.tempsfteam.class_tool.controller;
 import com.tempsfteam.class_tool.bean.Msg;
 import com.tempsfteam.class_tool.util.FileUtil;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
@@ -21,8 +19,8 @@ import java.util.UUID;
 @RequestMapping("/image")
 
 public class UploadImageController {
-    @Value("${image.image}")
-    private String imageFolder;
+
+    private final String pre = "http://1.95.80.153:8089/cloudClassroom/api/file/image/";
 
     @Value("${image.courseIcon}")
     private String courseIconFolder;
@@ -30,7 +28,7 @@ public class UploadImageController {
     /**
      * 上传图片
      * @param image 图片文件
-     * @param type 上传图片类型 0-头像 1-图标
+     * @param type 上传图片类型 0-课程图片
      * @return 图片链接
      */
     @PostMapping("/upload")
@@ -40,12 +38,12 @@ public class UploadImageController {
         }
 
         String path;
-        String webPath = "";
+        String typeStr;
 
         switch (type){
             case 0:
                 path = courseIconFolder;
-                webPath += "courseIcon/";
+                typeStr = "courseIcon";
                 break;
             default:
                 return Msg.fail("文件类型type输入错误");
@@ -64,21 +62,7 @@ public class UploadImageController {
             FileUtil.deleteTempFile(tempFile);
             return Msg.fail("非图片文件!");
         }
-        return Msg.success("上传成功",webPath + fileName);
-    }
-
-
-    @GetMapping("/get")
-    public ResponseEntity<FileSystemResource> getImage(@RequestParam String imagePath) {
-        String fullPath = imageFolder + imagePath;
-        FileSystemResource file = new FileSystemResource(fullPath);
-        if (!file.exists()) {
-            return ResponseEntity.notFound().build();
-        }
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.IMAGE_JPEG);
-        System.out.println("124312341241");
-        return ResponseEntity.ok().headers(headers).body(file);
+        return Msg.success("上传成功",pre + typeStr + "/" + fileName);
     }
 
 
