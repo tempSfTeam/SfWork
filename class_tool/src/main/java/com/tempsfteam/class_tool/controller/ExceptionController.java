@@ -22,7 +22,7 @@ public class ExceptionController {
 
     @ExceptionHandler(ServiceException.class)
     public Msg handleServiceException(ServiceException e){
-        e.printStackTrace();
+//        e.printStackTrace();
         return Msg.fail(e.getMsg());
     }
 
@@ -43,7 +43,7 @@ public class ExceptionController {
 
     @ExceptionHandler(Exception.class)
     public Msg handleException(Exception e){
-        e.printStackTrace();
+//        e.printStackTrace();
         return Msg.fail("服务器异常，请稍后再试!");
     }
 

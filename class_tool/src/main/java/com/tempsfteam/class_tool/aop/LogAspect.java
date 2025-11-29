@@ -21,7 +21,7 @@ public class LogAspect {
     private final Logger infoLogger = LoggerFactory.getLogger("com.rdc.info");
     private final Logger errorLogger = LoggerFactory.getLogger("com.rdc.error");
 
-    @Pointcut("execution(* com.tempsfteam.class_tool.controller.*.*(..))")
+    @Pointcut("execution(* com.rdc.controller.*.*(..))")
     public void log() {}
 
     @Before("log()")
@@ -45,6 +45,6 @@ public class LogAspect {
     public void afterThrowing(JoinPoint joinPoint, Throwable exception) {
         errorLogger.error("class_method={} threw exception: {}",
                 joinPoint.getSignature().getDeclaringTypeName() + "." + joinPoint.getSignature().getName(),
-                exception.getMessage());
+                exception.getMessage(), exception);
     }
 }
