@@ -13,9 +13,11 @@ import com.tempsfteam.class_tool.constant.SecretConst;
 import com.tempsfteam.class_tool.constant.role.IdentityEnum;
 import com.tempsfteam.class_tool.constant.role.Role;
 import com.tempsfteam.class_tool.dto.LoginDTO;
+import com.tempsfteam.class_tool.dto.UpdateUserDTO;
 import com.tempsfteam.class_tool.entity.User;
 import com.tempsfteam.class_tool.mapper.UserMapper;
 import com.tempsfteam.class_tool.service.UserService;
+import com.tempsfteam.class_tool.util.DTOUtils;
 import com.tempsfteam.class_tool.vo.SignInInfo;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -85,6 +87,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         signInInfo.setToken(token);
         signInInfo.setUserRole(user.getRole());
         return Msg.success("登录成功", signInInfo);
+    }
+
+    @Override
+    public Msg updateInfo(UpdateUserDTO updateUserDTO) throws Exception {
+        // 从token中获取用户id
+        long userId = StpUtil.getLoginIdAsLong();
+        // 将dto转换为实体类
+        User user = DTOUtils.convertDtoToDo(updateUserDTO, User.class, UpdateUserDTO::getPhone, UpdateUserDTO::getEmail);
+        user.setUserId(userId);
+        return this.updateById(user) ? Msg.success("更新成功") : Msg.fail("更新失败");
     }
 
 

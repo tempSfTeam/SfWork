@@ -3,8 +3,11 @@ package com.tempsfteam.class_tool.controller;
 import cn.dev33.satoken.stp.StpUtil;
 import com.tempsfteam.class_tool.bean.Msg;
 import com.tempsfteam.class_tool.dto.LoginDTO;
+import com.tempsfteam.class_tool.dto.UpdateUserDTO;
 import com.tempsfteam.class_tool.service.UserService;
 import com.tempsfteam.class_tool.util.CheckCodeUtil;
+import com.tempsfteam.class_tool.validation.TotalValidation;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -12,6 +15,9 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * @author ADACHI
+ */
 @RestController
 @RequestMapping("/user")
 
@@ -50,6 +56,16 @@ public class UserController {
             return Msg.success("登出成功");
         }
         return Msg.fail("未登录");
+    }
+
+    @PostMapping("/updateInfo")
+    public Msg updateInfo(@Validated(TotalValidation.UpdateUser.class) @RequestBody UpdateUserDTO updateUserDTO) throws Exception {
+        // 如果未登录，则登出
+        if (!StpUtil.isLogin()) {
+            return Msg.fail("未登录");
+        }
+        return userService.updateInfo(updateUserDTO);
+
     }
 
 
