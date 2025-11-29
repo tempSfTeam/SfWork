@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tempsfteam.class_tool.mapper.ExperimentMapper">
+
+    <resultMap id="BaseResultMap" type="com.tempsfteam.class_tool.entity.Experiment">
+        <id property="experimentId" column="experiment_id" jdbcType="INTEGER"/>
+        <result property="name" column="name" jdbcType="VARCHAR"/>
+        <result property="courseId" column="course_id" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        experiment_id,name,course_id
+    </sql>
+
+    <select id="selectFileByExperimentIdAndResourceType" resultMap="com.tempsfteam.class_tool.mapper.FileMapper.BaseResultMap">
+        SELECT
+            f.id, f.resource_type, f.experiment_id,
+            CONCAT((
+                       CASE
+                           WHEN file_type = 0 THEN '/pdf/'
+                           WHEN file_type = 1 THEN '/video/'
+                           END
+                       ),f.file_name) AS file_name
+        FROM file f
+        WHERE experiment_id = #{experimentId} AND resource_type = #{resourceType}
+    </select>
+
+</mapper>
