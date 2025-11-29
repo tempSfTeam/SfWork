@@ -18,7 +18,7 @@ import java.util.List;
  */
 @Service
 public class ExperimentServiceImpl extends ServiceImpl<ExperimentMapper, Experiment>
-        implements ExperimentService {
+        implements ExperimentService{
 
     @Value("${file.networkPath}")
     private String networkPath;
@@ -30,6 +30,11 @@ public class ExperimentServiceImpl extends ServiceImpl<ExperimentMapper, Experim
             file.setFileName(URLEncodeUtil.encode(networkPath + file.getFileName()));
         }
         return fileList;
+    }
+
+    @Override
+    public Boolean checkUserPermission(Integer experimentId, Long userId) {
+        return !baseMapper.selectExperimentByUserIdAndExperimentId(userId, experimentId).isEmpty();
     }
 }
 

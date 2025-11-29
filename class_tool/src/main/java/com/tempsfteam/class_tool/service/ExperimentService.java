@@ -20,4 +20,12 @@ public interface ExperimentService extends IService<Experiment> {
      * @return 文件列表
      */
     List<File> getExperimentFile(Integer experimentId, Integer resourceType);
+
+    /**
+     * 检查用户是否有权限
+     * @param experimentId 实验id
+     * @param userId 用户id
+     * @return 是否有权限
+     */
+    Boolean checkUserPermission(Integer experimentId, Long userId);
 }

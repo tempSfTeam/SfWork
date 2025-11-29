@@ -2,6 +2,7 @@ package com.tempsfteam.class_tool.config;
 
 import com.tempsfteam.class_tool.interceptor.ResourcesInterceptor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
@@ -22,7 +23,7 @@ public class WebConfig implements WebMvcConfigurer {
      */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(new ResourcesInterceptor())
+        registry.addInterceptor(resourcesInterceptor())
                 .addPathPatterns("/test/**")
                 .addPathPatterns("/file/pdf/**")
                 .addPathPatterns("/file/video/**");
@@ -33,4 +34,10 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/file/**")
                 .addResourceLocations("file:///" + filePath);
     }
+
+    @Bean
+    public ResourcesInterceptor resourcesInterceptor() {
+        return new ResourcesInterceptor();
+    }
 }
+

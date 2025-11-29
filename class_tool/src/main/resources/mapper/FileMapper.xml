@@ -16,4 +16,21 @@
         id,file_name,file_type,
         resource_type,experiment_id
     </sql>
+
+
+    <select id="selectFileByUserIdAndFileName" resultMap="BaseResultMap">
+        SELECT *
+        FROM (SELECT * FROM user_to_course WHERE user_id = #{userId}) utc
+                 JOIN experiment e
+                      ON utc.course_id = e.course_id
+                 JOIN file f
+                      ON e.experiment_id = f.experiment_id
+        where f.file_name = #{fileName}
+    </select>
+
+    <select id="selectOneByFileNameFiles" resultMap="BaseResultMap">
+        SELECT *
+        FROM file
+        WHERE file_name = #{fileName} Limit 1
+    </select>
 </mapper>

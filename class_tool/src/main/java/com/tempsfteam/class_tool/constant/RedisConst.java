@@ -11,8 +11,11 @@ public class RedisConst {
      */
     public static final String CAPTCHA_CODE_KEY = "captcha_codes:";
 
+    public static final String FILE_PERMISSION_KEY = "file_permission:";
+
     /**
      * 验证码有效期（分钟）
      */
     public static final Integer CAPTCHA_EXPIRATION = 3;
 }
+

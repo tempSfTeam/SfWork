@@ -27,4 +27,12 @@
         WHERE experiment_id = #{experimentId} AND resource_type = #{resourceType}
     </select>
 
+    <select id="selectExperimentByUserIdAndExperimentId" resultMap="BaseResultMap">
+        SELECT *
+        FROM (SELECT * FROM user_to_course WHERE user_id = #{userId}) utc
+                 JOIN experiment e
+                      ON utc.course_id = e.course_id
+        WHERE e.experiment_id = #{experimentId}
+    </select>
+
 </mapper>

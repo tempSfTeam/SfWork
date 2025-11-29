@@ -65,11 +65,11 @@ public class RedisUtil {
      * @param field 哈希表中的字段
      * @param value 要存储的值
      */
-    public void hset(String key, String field, Object value) {
+    public static void hset(String key, String field, Object value) {
         // 使用 RedisTemplate 的 opsForHash() 方法将值放入哈希表中
-        redisTemplateFromConfig.opsForHash().put(key, field, value);
+        redisTemplate.opsForHash().put(key, field, value);
         // 设置有效时间
-        redisTemplateFromConfig.expire(key, 1, TimeUnit.HOURS);
+        redisTemplate.expire(key, 1, TimeUnit.HOURS);
     }
 
     /**
@@ -102,8 +102,8 @@ public class RedisUtil {
      * @param field field
      * @return value
      */
-    public Object hget(String key, String field) {
-        return key == null ? null : redisTemplateFromConfig.opsForHash().get(key, field);
+    public static Object hget(String key, String field) {
+        return key == null ? null : redisTemplate.opsForHash().get(key, field);
     }
 
 
@@ -170,6 +170,7 @@ public class RedisUtil {
      * @param key map中的键
      * @param value map中的值
      */
+    @Deprecated
     public void putMap(String mapKey, String key, Object value){
         redisTemplateFromConfig.opsForHash().put(mapKey, key, value);
     }
@@ -180,6 +181,7 @@ public class RedisUtil {
      * @param key map中的键
      * @return map中的值
      */
+    @Deprecated
     public Object getMap(String mapKey, String key){
         return redisTemplateFromConfig.opsForHash().get(mapKey, key);
     }

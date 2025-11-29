@@ -26,6 +26,14 @@ public interface ExperimentMapper extends BaseMapper<Experiment> {
      */
     List<File> selectFileByExperimentIdAndResourceType(@Param("experimentId")Integer experimentId, @Param("resourceType") Integer resourceType);
 
+    /**
+     * 根据用户id和实验id查询实验
+     * @param userId 用户id
+     * @param experimentId 实验id
+     * @return 实验列表
+     */
+    List<Experiment> selectExperimentByUserIdAndExperimentId(@Param("userId") Long userId, @Param("experimentId") Integer experimentId);
+
 }
 
 

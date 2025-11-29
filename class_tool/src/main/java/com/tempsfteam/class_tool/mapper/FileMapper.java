@@ -3,6 +3,9 @@ package com.tempsfteam.class_tool.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.tempsfteam.class_tool.entity.File;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
 
 /**
  * @author 19735
@@ -13,7 +16,20 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface FileMapper extends BaseMapper<File> {
 
-}
+    /**
+     * 根据用户id和文件名查询文件
+     * @param userId 用户id
+     * @param fileName 文件名
+     * @return 文件列表
+     */
+    List<File> selectFileByUserIdAndFileName(@Param("userId") Long userId, @Param("fileName") String fileName);
 
+    /**
+     * 根据文件名查询文件
+     * @param fileName 文件名
+     * @return 文件列表
+     */
+    File selectOneByFileNameFiles(@Param("fileName") String fileName);
+}
 
 
