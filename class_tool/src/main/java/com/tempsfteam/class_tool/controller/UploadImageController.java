@@ -3,8 +3,11 @@ package com.tempsfteam.class_tool.controller;
 import com.tempsfteam.class_tool.bean.Msg;
 import com.tempsfteam.class_tool.util.FileUtil;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
@@ -15,7 +18,11 @@ import java.util.UUID;
  * @create : 2024/7/16
  */
 @RestController
+@RequestMapping("/image")
+
 public class UploadImageController {
+    @Value("${image.image}")
+    private String imageFolder;
 
     @Value("${image.courseIcon}")
     private String courseIconFolder;
@@ -26,14 +33,14 @@ public class UploadImageController {
      * @param type 上传图片类型 0-头像 1-图标
      * @return 图片链接
      */
-    @PostMapping("/uploadImage")
+    @PostMapping("/upload")
     public Msg uploadImage(MultipartFile image, Integer type) throws Exception{
         if(image==null){
             return Msg.fail("参数image异常");
         }
 
         String path;
-        String webPath = "/cloudClassroom/api/image/";
+        String webPath = "";
 
         switch (type){
             case 0:
@@ -57,7 +64,22 @@ public class UploadImageController {
             FileUtil.deleteTempFile(tempFile);
             return Msg.fail("非图片文件!");
         }
-        return Msg.success("上传成功", webPath + fileName);
+        return Msg.success("上传成功",webPath + fileName);
     }
+
+
+    @GetMapping("/get")
+    public ResponseEntity<FileSystemResource> getImage(@RequestParam String imagePath) {
+        String fullPath = imageFolder + imagePath;
+        FileSystemResource file = new FileSystemResource(fullPath);
+        if (!file.exists()) {
+            return ResponseEntity.notFound().build();
+        }
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.IMAGE_JPEG);
+        System.out.println("124312341241");
+        return ResponseEntity.ok().headers(headers).body(file);
+    }
+
 
 }
