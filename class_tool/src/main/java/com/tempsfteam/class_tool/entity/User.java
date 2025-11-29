@@ -30,16 +30,20 @@ public class User implements Serializable {
     /**
      *
      */
-    private String avatar;
+    private String password;
 
     /**
      *
      */
-    private String openId;
+    private String avatar;
 
+
+    private String phone;
+    private String email;
+    private Integer role;
+    private Integer schoolId;
+    private Integer classId;
     private LocalDateTime createTime;
-
-    private Integer accountBookId;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;

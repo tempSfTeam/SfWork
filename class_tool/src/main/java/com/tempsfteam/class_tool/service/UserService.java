@@ -2,6 +2,7 @@ package com.tempsfteam.class_tool.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.tempsfteam.class_tool.bean.Msg;
+import com.tempsfteam.class_tool.dto.LoginDTO;
 import com.tempsfteam.class_tool.entity.User;
 
 import java.io.IOException;
@@ -15,10 +16,9 @@ public interface UserService extends IService<User> {
 
     /**
      * 登录
-     * @param code code
      * @return 用户Id和token
      */
-    Msg login(String code) throws IOException;
+    Msg login(LoginDTO loginDTO) throws IOException;
 
 
 }

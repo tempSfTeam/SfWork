@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class LoginDTO {
-    private String account;
+    private String name;
     private String password;
     private String uncheckedCode;
 

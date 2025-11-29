@@ -4,6 +4,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import java.util.Map;
 import java.util.Set;
@@ -18,15 +19,22 @@ import java.util.stream.Collectors;
 public class RedisUtil {
 
     @Resource
-    private RedisTemplate<String, Object> redisTemplate;
+    private RedisTemplate<String, Object> redisTemplateFromConfig;
 
+    private static RedisTemplate<String, Object> redisTemplate;
+
+    @PostConstruct
+    public void init() {
+        // 将注入的实例变量赋值给静态变量
+        redisTemplate = redisTemplateFromConfig;
+    }
     /**
      *  放入缓存
      * @param key key
      * @param value value
      */
     public void set(String key, Object value){
-        redisTemplate.opsForValue().set(key, value);
+        redisTemplateFromConfig.opsForValue().set(key, value);
     }
 
     /**
@@ -36,7 +44,19 @@ public class RedisUtil {
      * @param expireTime 过期时间
      */
     public void set(String key, Object value, long expireTime){
-        redisTemplate.opsForValue().set(key, value, expireTime, TimeUnit.DAYS);
+        redisTemplateFromConfig.opsForValue().set(key, value, expireTime, TimeUnit.DAYS);
+    }
+
+    /**
+     * 添加带过期时间的string
+     *
+     * @param key 键
+     * @param value 值
+     * @param expireTime 过期时间
+     * @param timeUnit 时间单位
+     */
+    public static void setEx(String key, String value, long expireTime, TimeUnit timeUnit) {
+        redisTemplate.opsForValue().set(key, value,expireTime,timeUnit);
     }
 
     /**
@@ -47,9 +67,9 @@ public class RedisUtil {
      */
     public void hset(String key, String field, Object value) {
         // 使用 RedisTemplate 的 opsForHash() 方法将值放入哈希表中
-        redisTemplate.opsForHash().put(key, field, value);
+        redisTemplateFromConfig.opsForHash().put(key, field, value);
         // 设置有效时间
-        redisTemplate.expire(key, 1, TimeUnit.HOURS);
+        redisTemplateFromConfig.expire(key, 1, TimeUnit.HOURS);
     }
 
     /**
@@ -62,9 +82,9 @@ public class RedisUtil {
      */
     public void hset(String key, String field, Object value, long expireTime, TimeUnit unit) {
         // 使用 RedisTemplate 的 opsForHash() 方法将值放入哈希表中
-        redisTemplate.opsForHash().put(key, field, value);
+        redisTemplateFromConfig.opsForHash().put(key, field, value);
         // 设置有效时间
-        redisTemplate.expire(key, expireTime, unit);
+        redisTemplateFromConfig.expire(key, expireTime, unit);
     }
 
     /**
@@ -73,7 +93,7 @@ public class RedisUtil {
      * @return value
      */
     public Object get(String key){
-        return key == null ? null : redisTemplate.opsForValue().get(key);
+        return key == null ? null : redisTemplateFromConfig.opsForValue().get(key);
     }
 
     /**
@@ -83,7 +103,7 @@ public class RedisUtil {
      * @return value
      */
     public Object hget(String key, String field) {
-        return key == null ? null : redisTemplate.opsForHash().get(key, field);
+        return key == null ? null : redisTemplateFromConfig.opsForHash().get(key, field);
     }
 
 
@@ -97,14 +117,14 @@ public class RedisUtil {
      */
     public Set<String> zrangeByScore(String key, double min, double max) {
         // 获取 ZSetOperations 对象，用于操作 Sorted Set
-        ZSetOperations<String, Object> zSetOps = redisTemplate.opsForZSet();
+        ZSetOperations<String, Object> zSetOps = redisTemplateFromConfig.opsForZSet();
         // 获取指定分数范围内的元素
         return (Set<String>) (Set<?>) zSetOps.rangeByScore(key, min, max);
     }
 
 
     public void zremByKey(String key){
-        redisTemplate.opsForZSet().removeRange(key, 0, -1);
+        redisTemplateFromConfig.opsForZSet().removeRange(key, 0, -1);
     }
 
     /**
@@ -112,7 +132,7 @@ public class RedisUtil {
      * @param key key
      */
     public void delete(String key){
-        redisTemplate.delete(key);
+        redisTemplateFromConfig.delete(key);
     }
 
     /**
@@ -122,7 +142,7 @@ public class RedisUtil {
      * @param score score
      */
     public void zAdd(String key, Object value, double score){
-        redisTemplate.opsForZSet().add(key, value, score);
+        redisTemplateFromConfig.opsForZSet().add(key, value, score);
     }
 
     /**
@@ -131,7 +151,7 @@ public class RedisUtil {
      * @return ZSet中的元素
      */
     public Set<Object> getZSet(String key){
-        return redisTemplate.opsForZSet().rangeByScore(key, 0, System.currentTimeMillis() / 1000.0, 0, 100);
+        return redisTemplateFromConfig.opsForZSet().rangeByScore(key, 0, System.currentTimeMillis() / 1000.0, 0, 100);
     }
 
     /**
@@ -141,7 +161,7 @@ public class RedisUtil {
      * @return 是否删除成功
      */
     public Boolean removeZSet(String key, Object value){
-        return redisTemplate.opsForZSet().remove(key, value) == 1;
+        return redisTemplateFromConfig.opsForZSet().remove(key, value) == 1;
     }
 
     /**
@@ -151,7 +171,7 @@ public class RedisUtil {
      * @param value map中的值
      */
     public void putMap(String mapKey, String key, Object value){
-        redisTemplate.opsForHash().put(mapKey, key, value);
+        redisTemplateFromConfig.opsForHash().put(mapKey, key, value);
     }
 
     /**
@@ -161,7 +181,7 @@ public class RedisUtil {
      * @return map中的值
      */
     public Object getMap(String mapKey, String key){
-        return redisTemplate.opsForHash().get(mapKey, key);
+        return redisTemplateFromConfig.opsForHash().get(mapKey, key);
     }
 
     /**
@@ -170,7 +190,7 @@ public class RedisUtil {
      * @param key map中的键
      */
     public void removeMapEntryByKey(String mapKey, String key){
-        redisTemplate.opsForHash().delete(mapKey, key);
+        redisTemplateFromConfig.opsForHash().delete(mapKey, key);
     }
 
     /**
@@ -181,7 +201,7 @@ public class RedisUtil {
      */
     @Deprecated
     public Boolean isMapKeyExist(String mapKey ,Object key){
-        return redisTemplate.opsForHash().get(key.toString(), mapKey) != null;
+        return redisTemplateFromConfig.opsForHash().get(key.toString(), mapKey) != null;
     }
 
     /**
@@ -189,7 +209,7 @@ public class RedisUtil {
      * @param key ZSet的key
      */
     public void deleteZSet(String key){
-        redisTemplate.delete(key);
+        redisTemplateFromConfig.delete(key);
     }
 
 
@@ -201,14 +221,14 @@ public class RedisUtil {
      * @param score 与值关联的分数
      */
     public void addSortSet(String key,Integer value,double score) {
-        ZSetOperations<String, Object> zSetOps = redisTemplate.opsForZSet();
+        ZSetOperations<String, Object> zSetOps = redisTemplateFromConfig.opsForZSet();
         zSetOps.add(key, value, score);
     }
 
 
     // 更新有序集合
     public void updateSortSet(String key,Integer value, double newScore) {
-        ZSetOperations<String, Object> zSetOps = redisTemplate.opsForZSet();
+        ZSetOperations<String, Object> zSetOps = redisTemplateFromConfig.opsForZSet();
         zSetOps.add(key, value, newScore);
     }
 
@@ -218,12 +238,12 @@ public class RedisUtil {
      * @param value 要从有序集合中删除的元素的值，通常是id等标识
      */
     public void deleteSortSet(String key,Integer value) {
-        ZSetOperations<String, Object> zSetOps = redisTemplate.opsForZSet();
+        ZSetOperations<String, Object> zSetOps = redisTemplateFromConfig.opsForZSet();
         zSetOps.remove(key, value);
     }
 
     public Double getScoreFromSortedSet(String key, Object member) {
-        ZSetOperations<String, Object> zSetOps = redisTemplate.opsForZSet();
+        ZSetOperations<String, Object> zSetOps = redisTemplateFromConfig.opsForZSet();
         return zSetOps.score(key, member);
     }
 
@@ -233,7 +253,7 @@ public class RedisUtil {
      * @param id    主键id等
      */
     public void addClick(String key,Integer id) {
-        ZSetOperations<String, Object> zSetOps = redisTemplate.opsForZSet();
+        ZSetOperations<String, Object> zSetOps = redisTemplateFromConfig.opsForZSet();
         Double score = zSetOps.score(key, id);
         if (score == null) {
             score = 1.0;
@@ -248,7 +268,7 @@ public class RedisUtil {
      */
     public void plusClick(String key,Integer id) {
 
-        ZSetOperations<String, Object> zSetOps = redisTemplate.opsForZSet();
+        ZSetOperations<String, Object> zSetOps = redisTemplateFromConfig.opsForZSet();
         Double score = zSetOps.score(key, id);
         if (score != null) {
             score += 1;
@@ -264,7 +284,7 @@ public class RedisUtil {
      * @return 包含成员及其对应分数的 Map，如果没有找到任何成员则返回 null。
      */
     public Map<Object, Double> getTopMembersAndScores(String key, int limit) {
-        ZSetOperations<String, Object> zSetOps = redisTemplate.opsForZSet();
+        ZSetOperations<String, Object> zSetOps = redisTemplateFromConfig.opsForZSet();
         // 获取有序集合中指定范围内的成员及其分数的集合，按照分数从高到低排序。
         Set<ZSetOperations.TypedTuple<Object>> tuples = zSetOps.reverseRangeWithScores(key, 0, limit - 1);
         if (tuples == null) {
@@ -276,4 +296,5 @@ public class RedisUtil {
     }
 
 }
+
 

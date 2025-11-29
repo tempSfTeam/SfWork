@@ -8,13 +8,18 @@
         <id property="userId" column="user_id" jdbcType="BIGINT"/>
         <result property="name" column="name" jdbcType="VARCHAR"/>
         <result property="avatar" column="avatar" jdbcType="VARCHAR"/>
-        <result property="openId" column="open_id" jdbcType="VARCHAR"/>
+        <result property="password" column="password" jdbcType="VARCHAR"/>
         <result property="createTime" column="create_time" jdbcType="VARCHAR"/>
-        <result property="accountBookId" column="account_book_id" jdbcType="INTEGER"/>
+        <result property="phone" column="phone" jdbcType="VARCHAR"/>
+        <result property="email" column="email" jdbcType="VARCHAR"/>
+        <result property="role" column="role" jdbcType="INTEGER"/>
+        <result property="classId" column="class_id" jdbcType="INTEGER"/>
+        <result property="schoolId" column="school_id" jdbcType="INTEGER"/>
     </resultMap>
 
     <sql id="Base_Column_List">
         user_id,name,avatar,
-        open_id
+        password,create_time,phone,
+        email,role,classId,schoolId
     </sql>
 </mapper>
