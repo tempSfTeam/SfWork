@@ -2,6 +2,7 @@ package com.tempsfteam.class_tool.controller;
 
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.stp.StpUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.tempsfteam.class_tool.bean.Msg;
 import com.tempsfteam.class_tool.dto.LoginDTO;
 import com.tempsfteam.class_tool.dto.UpdateUserDTO;
@@ -70,6 +71,19 @@ public class UserController {
         long userId = StpUtil.getLoginIdAsLong();
         User user = userService.getById(userId);
         return user == null ? Msg.notLegal("用户不存在") : Msg.success("获取用户信息成功", UserVO.convertToUserVO(user));
+    }
+
+    // TODO: 测试用, 后续删除
+    @GetMapping("/getToken")
+    public Msg getToken(@RequestBody LoginDTO loginDTO) {
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getName, loginDTO.getName());
+        User user = userService.getOne(wrapper);
+        if (user == null) {
+            return Msg.notLegal("用户不存在");
+        }
+        StpUtil.login(user.getUserId());
+        return Msg.success("获取token成功", StpUtil.getTokenValue());
     }
 
 }
