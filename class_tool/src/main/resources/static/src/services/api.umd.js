@@ -43,11 +43,11 @@
             }
         }
 
-        // attach token if present
+        // attach token if present (uses Bearer <token> format)
         function attachTokenToAxios() {
-            const token = safeGetStorage('sf_token');
+            const token = safeGetStorage('sf_token'); // raw token
             if (token && instance.defaults) {
-                instance.defaults.headers.common['Authorization'] = token;
+                instance.defaults.headers.common['Authorization'] = 'Bearer ' + token;
             }
         }
         attachTokenToAxios();
@@ -56,7 +56,10 @@
         instance.interceptors.request.use(function (config) {
             try {
                 const t = safeGetStorage('sf_token');
-                if (t) config.headers = config.headers || {}, config.headers['Authorization'] = t;
+                if (t) {
+                    config.headers = config.headers || {};
+                    config.headers['Authorization'] = 'Bearer ' + t;
+                }
             } catch (e) { /* ignore */ }
             return config;
         }, function (error) {
@@ -79,6 +82,7 @@
                     } else {
                         // default: remove token and reload to login
                         safeRemoveStorage('sf_token');
+                        try { delete instance.defaults.headers.common['Authorization']; } catch (e) {}
                         console.warn('Auth failed, token cleared');
                     }
                 }
@@ -91,13 +95,20 @@
             setBaseURL(url) {
                 instance.defaults.baseURL = (url || DEFAULT_BASE).replace(/\/+$/, '');
             },
+            // token: raw token string (no "Bearer " prefix). ApiCore will send "Bearer <token>"
             setToken(token) {
                 if (token) {
                     safeSetStorage('sf_token', token);
-                    instance.defaults.headers.common['Authorization'] = token;
+                    instance.defaults.headers = instance.defaults.headers || {};
+                    instance.defaults.headers.common = instance.defaults.headers.common || {};
+                    instance.defaults.headers.common['Authorization'] = 'Bearer ' + token;
                 } else {
                     safeRemoveStorage('sf_token');
-                    delete instance.defaults.headers.common['Authorization'];
+                    try {
+                        if (instance.defaults && instance.defaults.headers && instance.defaults.headers.common) {
+                            delete instance.defaults.headers.common['Authorization'];
+                        }
+                    } catch (e) {}
                 }
             },
             getToken() {

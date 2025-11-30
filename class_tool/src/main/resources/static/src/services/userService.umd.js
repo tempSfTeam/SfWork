@@ -31,14 +31,27 @@
                 const res = await ApiCore.post('/user/login', body);
                 // backend returns Msg object: { code, message, data }
                 const payload = res.data;
-                // if token exists in payload.data, set it
+                // ---- token extraction ----
+                let token;
                 if (payload && payload.data) {
                     const data = payload.data;
-                    // try common token fields
-                    const token = data.token || data.tokenStr || data.stpToken || data.authorization || data.Authorization;
-                    if (token) {
-                        ApiCore.setToken(token);
+                    token = data.token || data.tokenStr || data.stpToken || data.authorization || data.Authorization || data.accessToken || data.access_token;
+                }
+                // also check response headers for Authorization
+                if (!token && res && res.headers) {
+                    let h = res.headers.authorization || res.headers.Authorization || res.headers['x-authorization'];
+                    if (h) {
+                        // header may be "Bearer <token>"
+                        if (typeof h === 'string' && h.toLowerCase().startsWith('bearer ')) {
+                            token = h.substring(7);
+                        } else {
+                            token = h;
+                        }
                     }
+                }
+                // if token found, store raw token and ApiCore will attach "Bearer " prefix on requests
+                if (token) {
+                    ApiCore.setToken(token);
                 }
                 return payload;
             } catch (e) {
@@ -48,6 +61,7 @@
         },
 
         // GET /user/getUserInfo  (if your backend has a different path adjust)
+        // This will send Authorization header automatically via ApiCore interceptors
         async getUserInfo() {
             try {
                 const res = await ApiCore.get('/user/getUserInfo');
