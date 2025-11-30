@@ -72,6 +72,20 @@
             }
         },
 
+        // Call server logout endpoint then clear token (bind to /user/logout)
+        async logoutServer() {
+            try {
+                // try call backend logout to invalidate server session/token
+                await ApiCore.get('/user/logout');
+            } catch (e) {
+                // ignore server error but still clear local token
+                console.warn('logoutServer failed', e);
+            } finally {
+                try { ApiCore.setToken(null); } catch(e){}
+            }
+        },
+
+        // Local-only logout (clear token)
         logout() {
             try {
                 ApiCore.setToken(null);
