@@ -3,10 +3,10 @@ server:
   servlet:
     context-path: /cloudClassroom/api
 spring:
-    profiles:
-      active:
-        '@env@'
-    servlet:
-      multipart:
-        max-file-size: 500MB
-        max-request-size: 500MB
+  profiles:
+    active:
+      '@env@'
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB

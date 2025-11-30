@@ -5,7 +5,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: rdc
     password: Rdc23@remote
-    url: jdbc:mysql://1.95.80.153:3306/cloudClassroom
+    url: jdbc:mysql://1.95.80.153:3306/cloud_classroom
     # 配置数据库连接池 Hikari 连接池
     hikari:
       minimum-idle: 3
@@ -67,14 +67,14 @@ sa-token:
   is-log: true
 
 file:
-    filepath: /usr/local/cloud_classroom/file/
-    pdf: /usr/local/cloud_classroom/file/pdf/
-    video: /usr/local/cloud_classroom/file/video/
-    word: /usr/local/cloud_classroom/file/word/
-    ppt: /usr/local/cloud_classroom/file/ppt/
-    filePic: /usr/local/cloud_classroom/file/filePic/
-    networkPath: /cloudClassroom/api/file/
+  filepath: /usr/local/cloud_classroom/file/
+  pdf: /usr/local/cloud_classroom/file/pdf/
+  video: /usr/local/cloud_classroom/file/video/
+  word: /usr/local/cloud_classroom/file/word/
+  ppt: /usr/local/cloud_classroom/file/ppt/
+  filePic: /usr/local/cloud_classroom/file/filePic/
+  networkPath: /cloudClassroom/api/file/
 
   #图片保存路径
 image:
-    courseIcon: /usr/local/cloud_classroom/file/image/courseIcon/
+  courseIcon: /usr/local/cloud_classroom/file/image/courseIcon/
