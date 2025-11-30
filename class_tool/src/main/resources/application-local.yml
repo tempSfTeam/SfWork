@@ -66,12 +66,12 @@ sa-token:
   is-log: true
 
 file:
-  filepath: E:\file\
-  pdf: E:\file\pdf\
-  video: E:\file\video\
-  word: E:\file\word\
-  ppt: E:\file\ppt\
-  filePic: E:\file\filePic\
+  filepath: C:\file\
+  pdf: C:\file\pdf\
+  video: C:\file\video\
+  word: C:\file\word\
+  ppt: C:\file\ppt\
+  filePic: C:\file\filePic\
   networkPath: /cloudClassroom/api/file/
 
 #图片保存路径
