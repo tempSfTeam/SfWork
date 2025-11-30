@@ -1,0 +1,69 @@
+// window.UserService (UMD) - user related API functions
+// 放置路径: src/main/resources/static/src/services/userService.umd.js
+(function () {
+    if (!window.ApiCore) {
+        console.error('ApiCore is required for UserService');
+        return;
+    }
+
+    const ApiCore = window.ApiCore;
+
+    const UserService = {
+        // init with api base if needed
+        init(apiBase) {
+            if (apiBase) ApiCore.setBaseURL(apiBase);
+        },
+
+        // GET /user/getVerifyCode
+        async getVerifyCode() {
+            try {
+                const res = await ApiCore.get('/user/getVerifyCode');
+                return res.data;
+            } catch (e) {
+                console.error('getVerifyCode error', e);
+                throw e;
+            }
+        },
+
+        // POST /user/login  body: { name, password, uncheckedCode?, uuid? }
+        async login(body) {
+            try {
+                const res = await ApiCore.post('/user/login', body);
+                // backend returns Msg object: { code, message, data }
+                const payload = res.data;
+                // if token exists in payload.data, set it
+                if (payload && payload.data) {
+                    const data = payload.data;
+                    // try common token fields
+                    const token = data.token || data.tokenStr || data.stpToken || data.authorization || data.Authorization;
+                    if (token) {
+                        ApiCore.setToken(token);
+                    }
+                }
+                return payload;
+            } catch (e) {
+                console.error('login error', e);
+                throw e;
+            }
+        },
+
+        // GET /user/getUserInfo  (if your backend has a different path adjust)
+        async getUserInfo() {
+            try {
+                const res = await ApiCore.get('/user/getUserInfo');
+                return res.data;
+            } catch (e) {
+                console.warn('getUserInfo error', e);
+                throw e;
+            }
+        },
+
+        logout() {
+            try {
+                ApiCore.setToken(null);
+            } catch (e) {}
+        }
+    };
+
+    window.UserService = UserService;
+})();

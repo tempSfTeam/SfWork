@@ -10,8 +10,7 @@ import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * @author : IMG
- * @create : 2024/9/14
+ * Web 配置：保留原有 /file/** 的磁盘映射，同时显式映射 /src/** 到 classpath:/static/src/
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
@@ -19,9 +18,6 @@ public class WebConfig implements WebMvcConfigurer {
     @Value("${file.filepath}")
     private String filePath;
 
-    /**
-     * 注册拦截器
-     */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(resourcesInterceptor())
@@ -38,10 +34,17 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // 保留现有的磁盘映射（原样）
         registry.addResourceHandler("/file/filePic/**")
                 .addResourceLocations("file:///" + filePath + "/filePic/");
         registry.addResourceHandler("/file/**")
                 .addResourceLocations("file:///" + filePath);
+
+        // 明确映射前端模块目录：把 /src/** 映射到 classpath:/static/src/
+        // 这会让请求 /cloudClassroom/api/src/main.js 对应到 classpath:/static/src/main.js
+        registry.addResourceHandler("/src/**")
+                .addResourceLocations("classpath:/static/src/")
+                .setCachePeriod(0);
     }
 
     @Bean
