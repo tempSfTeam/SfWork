@@ -130,8 +130,10 @@
             if (this.activeTop === '课程科目管理') this.ensureCourseTypesAndLoadProfessions();
             if (this.activeTop === '角色权限管理') this.loadRolePermissions();
             if (this.activeTop === '授予课程' && this.activeSub === 'grantSingle') {
+                // 先加载课程下拉（SimpleCourseVO）
                 this.loadSimpleCourses();
-                this.loadUserCourseAllowances(this.grant_role, 1, this.grant_size, this.grant_searchType, this.grant_searchStr);
+                // 然后加载用户-课程映射列表（默认页）
+                this.loadUserCourseAllowances(this.grant_role, this.grant_current || 1, this.grant_size || 10, this.grant_searchType, this.grant_searchStr);
             }
         },
         watch: {
@@ -184,16 +186,50 @@
                     const firstSub = group.subs[0];
                     if (firstSub && firstSub.key) {
                         this.activeSub = firstSub.key;
+
+                        // existing behaviors for specific groups
                         if (key === 'classes' && this.activeSub === 'singleClass') this.ensureSchoolsAndLoadClasses();
                         if (key === '学习对象管理') this.loadCourseTypes();
                         if (key === '课程科目管理') this.ensureCourseTypesAndLoadProfessions();
                         if (key === '角色权限管理') this.loadRolePermissions();
+
+                        // NEW: when opening 授予课程 group and the first sub is grantSingle, ensure courses loaded and load the list
+                        if (key === '授予课程' && this.activeSub === 'grantSingle') {
+                            this.ensureGrantCoursesLoaded()
+                                .then(() => {
+                                    this.loadUserCourseAllowances(this.grant_role, this.grant_current || 1, this.grant_size || 10, this.grant_searchType, this.grant_searchStr);
+                                })
+                                .catch(() => {
+                                    // even if course list failed, still try to load the allowances
+                                    this.loadUserCourseAllowances(this.grant_role, this.grant_current || 1, this.grant_size || 10, this.grant_searchType, this.grant_searchStr);
+                                });
+                        }
                     }
                 } else {
                     this.activeSub = '';
                 }
 
                 Object.keys(this.collapsed).forEach(k => { if (k !== key) this.collapsed[k] = false; });
+            },
+
+// ADD this helper method into methods (near other grant methods)
+            ensureGrantCoursesLoaded() {
+                // If already loaded, resolve immediately
+                if (Array.isArray(this.grant_course_list) && this.grant_course_list.length > 0) {
+                    return Promise.resolve(this.grant_course_list);
+                }
+                // Otherwise call loadSimpleCourses (it returns a Promise)
+                try {
+                    return Promise.resolve(this.loadSimpleCourses()).then(() => {
+                        return this.grant_course_list || [];
+                    }).catch(err => {
+                        console.warn('ensureGrantCoursesLoaded failed', err);
+                        return [];
+                    });
+                } catch (e) {
+                    console.warn('ensureGrantCoursesLoaded exception', e);
+                    return Promise.resolve([]);
+                }
             },
 
             chooseSub(topKey, subKey) {
@@ -209,6 +245,12 @@
                     this.ensureCourseTypesAndLoadProfessions();
                 } else if (topKey === '角色权限管理') {
                     this.loadRolePermissions();
+                } else if (topKey === '授予课程' && subKey === 'grantSingle') {
+                    this.ensureGrantCoursesLoaded().then(() => {
+                        this.loadUserCourseAllowances(this.grant_role, this.grant_current || 1, this.grant_size || 10, this.grant_searchType, this.grant_searchStr);
+                    }).catch(() => {
+                        this.loadUserCourseAllowances(this.grant_role, this.grant_current || 1, this.grant_size || 10, this.grant_searchType, this.grant_searchStr);
+                    });
                 }
             },
             contentTitle() { const top = this.menu.find(m => m.key === this.activeTop); if (!top) return ''; if (this.activeSub) { const s = (top.subs||[]).find(x=>x.key===this.activeSub); return s ? (top.title + ' - ' + s.title) : top.title; } return top.title; },
@@ -1021,14 +1063,39 @@
                 const headers = this._getAuthHeaders();
                 const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
                 const url = (base ? base : '') + '/course/getSimpleCourseVO';
+
+                const handleResult = (dataPayload) => {
+                    // dataPayload may be array or object with list/data/simpleCourseVOList etc.
+                    let candidate = dataPayload !== undefined && dataPayload.data !== undefined ? dataPayload.data : dataPayload;
+                    // if candidate is object and has typical field simpleCourseVOList / list / records, prefer them
+                    let arr = [];
+                    if (Array.isArray(candidate)) arr = candidate;
+                    else if (Array.isArray(candidate.simpleCourseVOList)) arr = candidate.simpleCourseVOList;
+                    else if (Array.isArray(candidate.list)) arr = candidate.list;
+                    else if (Array.isArray(candidate.records)) arr = candidate.records;
+                    else {
+                        // scan properties for first array
+                        for (const k of Object.keys(candidate || {})) {
+                            if (Array.isArray(candidate[k])) { arr = candidate[k]; break; }
+                        }
+                    }
+
+                    // Normalise each course item to { id, name }
+                    this.grant_course_list = (arr || []).map(c => {
+                        const id = c.id !== undefined ? c.id : (c.courseId !== undefined ? c.courseId : (c.simpleId !== undefined ? c.simpleId : null));
+                        const name = c.name || c.title || c.courseName || c.cnName || '';
+                        return { id: id, name: name, _raw: c };
+                    });
+
+                    // debug
+                    try { console.debug('grant_course_list', this.grant_course_list); } catch (e) {}
+                };
+
                 if (window.ApiCore && typeof window.ApiCore.get === 'function') {
                     return window.ApiCore.get(url)
                         .then(resp => {
                             const data = resp && resp.data !== undefined ? resp.data : (resp || null);
-                            const candidate = data.data !== undefined ? data.data : data;
-                            // 解析成数组 of { id, name }（兼容包装）
-                            let arr = Array.isArray(candidate) ? candidate : (Array.isArray(candidate.list) ? candidate.list : []);
-                            this.grant_course_list = arr.map(c => ({ id: c.id !== undefined ? c.id : c.courseId || c.simpleId, name: c.name || c.title || c.cnName || '' }));
+                            handleResult(data);
                         })
                         .catch(err => { console.error('loadSimpleCourses failed', err); this.grant_error = '获取课程失败'; })
                         .finally(()=>{ this.grant_loading = false; });
@@ -1036,9 +1103,7 @@
                     return window.axios.get(url, { headers: headers, withCredentials: true })
                         .then(res => {
                             const data = res && res.data !== undefined ? res.data : (res || null);
-                            const candidate = data.data !== undefined ? data.data : data;
-                            let arr = Array.isArray(candidate) ? candidate : (Array.isArray(candidate.list) ? candidate.list : []);
-                            this.grant_course_list = arr.map(c => ({ id: c.id !== undefined ? c.id : c.courseId || c.simpleId, name: c.name || c.title || c.cnName || '' }));
+                            handleResult(data);
                         })
                         .catch(err => { console.error('loadSimpleCourses axios failed', err); this.grant_error = '获取课程失败'; })
                         .finally(()=>{ this.grant_loading = false; });
@@ -1088,10 +1153,12 @@
             _handleGrantResponse(payload) {
                 if (!payload) { this.grant_error = '无返回数据'; this.grant_items = []; this.grant_total = 0; return; }
                 if (payload.code !== undefined && payload.code !== null && payload.code !== 200 && payload.code !== 0) {
-                    this.grant_error = payload.message || payload.msg || ('错误代码 ' + payload.code); this.grant_items = []; this.grant_total = 0; return;
+                    this.grant_error = payload.message || payload.msg || ('错误代码 ' + payload.code);
+                    this.grant_items = []; this.grant_total = 0; return;
                 }
                 const data = payload.data !== undefined ? payload.data : payload;
-                // data 可能含 page.records 或 list 或 records
+
+                // find array of users (common locations)
                 let arr = [];
                 if (Array.isArray(data.records)) arr = data.records;
                 else if (Array.isArray(data.list)) arr = data.list;
@@ -1100,52 +1167,110 @@
                 else {
                     for (const k of Object.keys(data || {})) { if (Array.isArray(data[k])) { arr = data[k]; break; } }
                 }
-                // total
+
+                // total extraction
                 let total = 0;
                 if (data.total !== undefined) total = Number(data.total);
                 else if (data.page && data.page.total !== undefined) total = Number(data.page.total);
                 else if (payload.total !== undefined) total = Number(payload.total);
 
-                // map to grant_items: each element may be user object plus simpleCourseVOList field
-                this.grant_items = arr.map(u => ({
-                    user: u.user || u, // some responses structure: user embedded; otherwise u itself
-                    simpleCourseVOList: Array.isArray(u.simpleCourseVOList) ? u.simpleCourseVOList : (Array.isArray(u.courseList) ? u.courseList : [])
-                }));
+                // map and normalise simpleCourseVOList entries
+                this.grant_items = (arr || []).map(u => {
+                    // u might be { user: {...}, simpleCourseVOList: [...] } or a flat user object with a list field
+                    const userObj = u.user || u;
+                    let rawList = Array.isArray(u.simpleCourseVOList) ? u.simpleCourseVOList
+                        : Array.isArray(u.courseList) ? u.courseList
+                            : Array.isArray(userObj.simpleCourseVOList) ? userObj.simpleCourseVOList
+                                : [];
+                    const simpleCourseVOList = (rawList || []).map(c => {
+                        const id = c.id !== undefined ? c.id : (c.courseId !== undefined ? c.courseId : (c.simpleId !== undefined ? c.simpleId : null));
+                        const name = c.name || c.title || c.courseName || c.cnName || '';
+                        return { id: id, name: name, _raw: c };
+                    });
+                    return {
+                        user: userObj,
+                        simpleCourseVOList: simpleCourseVOList,
+                        _selectedCourseToAdd: null,
+                        _saving: false
+                    };
+                });
 
                 this.grant_total = Number.isFinite(Number(total)) ? Number(total) : (this.grant_items.length || 0);
+                try { console.debug('grant_items', this.grant_items); } catch (e) {}
             },
 
-// 4) 为用户添加课程: POST /manage/insertUserToCourse { userId, courseId }
-            addCourseToUser(user, courseId) {
-                if (!user || !courseId) return;
-                const payload = { userId: user.userId || user.userId || user.id || user.user_id, courseId: Number(courseId) };
+// 替换 AdminPage.js 中的 addCourseToUser 和 removeCourseFromUser 方法为下面实现
+
+            addCourseToUser(it, courseId) {
+                if (!it || !it.user || !courseId) return;
+                const user = it.user;
+                const userId = user.userId !== undefined ? user.userId : (user.id !== undefined ? user.id : (user.user_id !== undefined ? user.user_id : null));
+                if (!userId) { alert('无法识别用户ID'); return; }
+
+                it._saving = true;
+                console.debug('insertUserToCourse payload', { userId, courseId: Number(courseId) });
+
+                const payload = { userId: userId, courseId: Number(courseId) };
                 const headers = this._getAuthHeaders();
+
                 const doPost = () => {
                     if (window.ApiCore && typeof window.ApiCore.post === 'function') return window.ApiCore.post('/manage/insertUserToCourse', payload);
-                    return window.axios.post(((this.store && this.store.apiBase)?this.store.apiBase.replace(/\/+$/,''):'') + '/manage/insertUserToCourse', payload, { headers: headers, withCredentials: true });
+                    if (!window.axios || typeof window.axios.post !== 'function') return Promise.reject(new Error('no http client'));
+                    const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                    const url = (base ? base : '') + '/manage/insertUserToCourse';
+                    return window.axios.post(url, payload, { headers: headers, withCredentials: true });
                 };
-                doPost().then(res => {
-                    console.info('insertUserToCourse ok', res && res.data ? res.data : res);
-                    // reload the current page of allowances to refresh that user's course chips
-                    this.loadUserCourseAllowances(this.grant_role, this.grant_current, this.grant_size, this.grant_searchType, this.grant_searchStr);
-                }).catch(err => { console.error('insertUserToCourse failed', err); alert('授课失败'); });
+
+                doPost()
+                    .then(res => {
+                        console.info('insertUserToCourse ok', res && res.data ? res.data : res);
+                        it._selectedCourseToAdd = null;
+                        this.loadUserCourseAllowances(this.grant_role, this.grant_current, this.grant_size, this.grant_searchType, this.grant_searchStr);
+                    })
+                    .catch(err => {
+                        console.error('insertUserToCourse failed', err);
+                        const msg = err && err.response && err.response.data && (err.response.data.msg || err.response.data.message) ? (err.response.data.msg || err.response.data.message) : (err && err.message ? err.message : '网络或服务器错误');
+                        alert('授课失败：' + msg);
+                    })
+                    .finally(() => {
+                        it._saving = false;
+                    });
             },
 
-// 5) 删除用户-课程关系: POST /manage/deleteUserToCourse { userId, courseId }
-            removeCourseFromUser(user, courseId) {
-                if (!user || !courseId) return;
+            removeCourseFromUser(it, courseId) {
+                if (!it || !it.user || !courseId) return;
                 if (!confirm('确定移除该课程吗？')) return;
-                const payload = { userId: user.userId || user.id || user.user_id, courseId: Number(courseId) };
+                const user = it.user;
+                const userId = user.userId !== undefined ? user.userId : (user.id !== undefined ? user.id : (user.user_id !== undefined ? user.user_id : null));
+                if (!userId) { alert('无法识别用户ID'); return; }
+
+                it._saving = true;
+                console.debug('deleteUserToCourse payload', { userId, courseId: Number(courseId) });
+
+                const payload = { userId: userId, courseId: Number(courseId) };
                 const headers = this._getAuthHeaders();
+
                 const doPost = () => {
                     if (window.ApiCore && typeof window.ApiCore.post === 'function') return window.ApiCore.post('/manage/deleteUserToCourse', payload);
-                    return window.axios.post(((this.store && this.store.apiBase)?this.store.apiBase.replace(/\/+$/,''):'') + '/manage/deleteUserToCourse', payload, { headers: headers, withCredentials: true });
+                    if (!window.axios || typeof window.axios.post !== 'function') return Promise.reject(new Error('no http client'));
+                    const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                    const url = (base ? base : '') + '/manage/deleteUserToCourse';
+                    return window.axios.post(url, payload, { headers: headers, withCredentials: true });
                 };
-                doPost().then(res => {
-                    console.info('deleteUserToCourse ok', res && res.data ? res.data : res);
-                    // reload current page to reflect change
-                    this.loadUserCourseAllowances(this.grant_role, this.grant_current, this.grant_size, this.grant_searchType, this.grant_searchStr);
-                }).catch(err => { console.error('deleteUserToCourse failed', err); alert('删除失败'); });
+
+                doPost()
+                    .then(res => {
+                        console.info('deleteUserToCourse ok', res && res.data ? res.data : res);
+                        this.loadUserCourseAllowances(this.grant_role, this.grant_current, this.grant_size, this.grant_searchType, this.grant_searchStr);
+                    })
+                    .catch(err => {
+                        console.error('deleteUserToCourse failed', err);
+                        const msg = err && err.response && err.response.data && (err.response.data.msg || err.response.data.message) ? (err.response.data.msg || err.response.data.message) : (err && err.message ? err.message : '网络或服务器错误');
+                        alert('删除失败：' + msg);
+                    })
+                    .finally(() => {
+                        it._saving = false;
+                    });
             },
 
 // 6) 简易分页 handlers for grant module
@@ -1918,11 +2043,16 @@
           <div style="font-weight:600">{{ it.user && (it.user.username || it.user.name || it.user.userName) }}</div>
           <div style="display:flex;align-items:center;gap:8px">
             <!-- 下拉选择可添加课程（选项来源于 grant_course_list） -->
-            <select v-model.number="it._selectedCourseToAdd" style="padding:6px;border:1px solid #e6eef8;border-radius:6px">
-              <option :value="null">点击授予课程</option>
-              <option v-for="c in grant_course_list" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </select>
-            <button @click="addCourseToUser(it.user, it._selectedCourseToAdd)" :disabled="!it._selectedCourseToAdd" style="background:#2b7cff;color:#fff;border:none;padding:6px 10px;border-radius:6px">授予</button>
+<select
+  v-model.number="it._selectedCourseToAdd"
+  @focus="ensureGrantCoursesLoaded()"
+  @click="ensureGrantCoursesLoaded()"
+  style="padding:6px;border:1px solid #e6eef8;border-radius:6px"
+>
+  <option :value="null">点击授予课程</option>
+  <option v-for="c in grant_course_list" :key="c.id" :value="c.id">{{ c.name }}</option>
+</select>
+            <button @click="addCourseToUser(it, it._selectedCourseToAdd)" :disabled="!it._selectedCourseToAdd || it._saving" style="background:#2b7cff;color:#fff;border:none;padding:6px 10px;border-radius:6px">授予</button>
           </div>
         </div>
 
@@ -1930,7 +2060,7 @@
         <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">
           <span v-for="c in it.simpleCourseVOList" :key="c.id" style="display:inline-flex;align-items:center;background:#f4f9ff;border:1px solid #d7ebff;padding:6px 8px;border-radius:6px">
             <span style="margin-right:8px">{{ c.name || c.courseName || c.title }}</span>
-            <button @click="removeCourseFromUser(it.user, c.id)" style="background:transparent;border:none;color:#888;cursor:pointer;padding:0 4px">✕</button>
+            <button @click="removeCourseFromUser(it, c.id)" :disabled="it._saving" style="background:transparent;border:none;color:#888;cursor:pointer;padding:0 4px">✕</button>
           </span>
         </div>
       </div>
