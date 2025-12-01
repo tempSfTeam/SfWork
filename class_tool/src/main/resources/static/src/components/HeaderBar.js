@@ -1,4 +1,6 @@
 // HeaderBar (UMD) - 共享顶部横栏，提供 mountHeader(store) 接口
+// Modified: logout now uses POST to /user/logout (uses UserService.logoutServer if available, otherwise ApiCore.post or axios.post)
+// and clears token after successful call.
 (function () {
     if (!window.Vue) {
         console.error('Vue is required for HeaderBar');
@@ -11,7 +13,6 @@
         data() {
             return {
                 showAvatarMenu: false,
-                // small defaults
                 defaultAvatar: 'data:image/svg+xml;utf8,' + encodeURIComponent(
                     `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
                       <rect width="100%" height="100%" rx="8" fill="#f0f6fb"/>
@@ -21,7 +22,6 @@
                       </g>
                     </svg>`
                 ),
-                // default logo to avoid empty-src broken image
                 defaultLogo: 'data:image/svg+xml;utf8,' + encodeURIComponent(
                     `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="100%" height="100%" rx="6" fill="#2b7cff"/><text x="50%" y="50%" fill="#fff" font-size="16" text-anchor="middle" alignment-baseline="middle">S</text></svg>`
                 )
@@ -33,6 +33,19 @@
             },
             avatarSrc() {
                 return (this.store && this.store.user && this.store.user.avatar) ? this.store.user.avatar : this.defaultAvatar;
+            },
+            // convenience: expose numeric roleCode and display name if available
+            roleCode() {
+                return this.store && this.store.user ? this.store.user.roleCode : null;
+            },
+            roleName() {
+                return this.store && this.store.user ? this.store.user.roleName : null;
+            },
+            // whether to show admin nav
+            showAdminNav() {
+                // roleCode 2 = COURSE_MANAGER, 3 = OPERATIONS
+                const rc = this.roleCode;
+                return rc === 2 || rc === 3;
             }
         },
         mounted() {
@@ -60,19 +73,45 @@
             },
             async logout() {
                 try {
+                    // Preferred: UserService.logoutServer (if your backend wrapper provides it)
                     if (window.UserService && typeof window.UserService.logoutServer === 'function') {
                         await window.UserService.logoutServer();
-                    } else if (window.ApiCore && typeof window.ApiCore.get === 'function') {
-                        try { await window.ApiCore.get('/user/logout'); } catch(e) {}
-                        try { window.ApiCore.setToken(null); } catch(e){}
+                        // some UserService implementations may clear token internally; ensure store cleared
+                        try { if (this.store) this.store.user = null; } catch (e) {}
                     } else {
-                        try { localStorage.removeItem('sf_token'); } catch(e) {}
+                        // Try ApiCore POST /user/logout
+                        if (window.ApiCore && typeof window.ApiCore.post === 'function') {
+                            try {
+                                await window.ApiCore.post('/user/logout', {}); // POST request, body empty
+                            } catch (e) {
+                                // swallow but log
+                                console.warn('ApiCore.post /user/logout failed', e);
+                            }
+                            // clear token in ApiCore if available
+                            try { if (typeof window.ApiCore.setToken === 'function') window.ApiCore.setToken(null); } catch (e) {}
+                        } else if (window.axios) {
+                            // axios fallback: POST to base + /user/logout
+                            try {
+                                const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                                const url = (base ? base : '') + '/user/logout';
+                                await window.axios.post(url, {});
+                            } catch (e) {
+                                console.warn('axios POST /user/logout failed', e);
+                            }
+                            // try to remove token from localStorage
+                            try { localStorage.removeItem('sf_token'); } catch (e) {}
+                        } else {
+                            // no HTTP client: just clear local token
+                            try { localStorage.removeItem('sf_token'); } catch (e) {}
+                        }
+                        // clear store user
+                        try { if (this.store) this.store.user = null; } catch (e) {}
                     }
                 } catch (e) {
                     console.warn('HeaderBar.logout error', e);
                 } finally {
-                    try { if (this.store) this.store.user = null; } catch(e){}
-                    this.goto('/login');
+                    // navigate to login in all cases
+                    try { this.goto('/login'); } catch (e) { location.hash = '#/login'; }
                 }
             },
             avatarError(e) {
@@ -94,6 +133,7 @@
             <div style="display:flex;gap:12px;align-items:center">
               <div @click="goto('/dashboard')" style="padding:6px 10px;cursor:pointer">首页</div>
               <div @click="goto('/courses')" style="padding:6px 10px;cursor:pointer">课程</div>
+              <div v-if="showAdminNav" @click="goto('/admin')" style="padding:6px 10px;cursor:pointer">管理</div>
             </div>
           </div>
 
@@ -118,7 +158,12 @@
         try {
             containerId = containerId || '#shared-header';
             if (window.__HEADER_MOUNTED__) {
-                // already mounted
+                // already mounted; update store prop if possible
+                try {
+                    if (window.__HEADER_APP__ && window.__HEADER_APP__._instance && window.__HEADER_APP__._instance.props) {
+                        window.__HEADER_APP__._instance.props.store = store;
+                    }
+                } catch (e) {}
                 return;
             }
             const el = document.querySelector(containerId);

@@ -3,36 +3,167 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>SfWork — 登录</title>
-    <base href="/cloudClassroom/api/">
-    ...
+    <title>SfWork</title>
+
+    <!-- Inline SVG favicon -->
+    <link rel="icon" href="data:image/svg+xml;utf8,
+    <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>
+      <rect width='100%' height='100%' rx='8' fill='%232b7cff'/>
+      <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='28' fill='%23fff' font-family='Arial, Helvetica, sans-serif'>云</text>
+    </svg>">
 </head>
 <body>
-<!-- 全局共享 header 挂载点（始终存在） -->
 <div id="shared-header"></div>
-
-<!-- App root -->
 <div id="app"></div>
 
-<!-- UMD/global libs -->
-<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-<script src="https://unpkg.com/vue-router@4/dist/vue-router.global.prod.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script>
+    // Controlled loader:
+    // 1) load Vue and VueRouter first (sequentially)
+    // 2) try axios candidates until window.axios becomes available
+    // 3) when axios ready, sequentially load dependency scripts:
+    //    api.umd.js, userService.umd.js, HeaderBar.js, pages..., main.js
 
-<!-- API wrapper (UMD) -->
-<script src="/cloudClassroom/api/src/services/api.umd.js"></script>
-<script src="/cloudClassroom/api/src/services/userService.umd.js"></script>
+    (function () {
+        // helper to load a single script sequentially (not async)
+        function loadScript(src, cb) {
+            var s = document.createElement('script');
+            s.src = src;
+            // ensure execution order when appended dynamically
+            s.async = false;
+            s.onload = function () { cb && cb(null, src); };
+            s.onerror = function () { cb && cb(new Error('Failed to load ' + src)); };
+            document.head.appendChild(s);
+        }
 
-<!-- Shared header component (must be before pages that expect it) -->
-<script src="/cloudClassroom/api/src/components/HeaderBar.js"></script>
+        // 1) Load Vue and VueRouter sequentially
+        var vueCandidates = [
+            'https://unpkg.com/vue@3/dist/vue.global.prod.js',
+            // (optionally) add local fallback if needed: '/cloudClassroom/api/src/vendor/vue.global.prod.js'
+        ];
+        var vueRouterCandidates = [
+            'https://unpkg.com/vue-router@4/dist/vue-router.global.prod.js',
+            // local fallback (if you host it): '/cloudClassroom/api/src/vendor/vue-router.global.prod.js'
+        ];
 
-<!-- Page components -->
-<script src="/cloudClassroom/api/src/components/LoginPage.js"></script>
-<script src="/cloudClassroom/api/src/components/HomePage.js"></script>
-<script src="/cloudClassroom/api/src/components/ProfilePage.js"></script>
-<script src="/cloudClassroom/api/src/components/CoursePage.js"></script>
+        function tryLoadList(list, i, onSuccess, onFailure) {
+            if (i >= list.length) {
+                onFailure && onFailure();
+                return;
+            }
+            loadScript(list[i], function (err) {
+                if (!err) {
+                    onSuccess && onSuccess(list[i]);
+                } else {
+                    console.warn('Candidate failed for', list[i]);
+                    tryLoadList(list, i + 1, onSuccess, onFailure);
+                }
+            });
+        }
 
-<!-- 主入口 -->
-<script src="/cloudClassroom/api/src/main.js"></script>
+        // Start by loading Vue
+        tryLoadList(vueCandidates, 0, function (src) {
+            console.info('Loaded Vue from', src);
+            // then VueRouter
+            tryLoadList(vueRouterCandidates, 0, function (src2) {
+                console.info('Loaded VueRouter from', src2);
+                // Now proceed to axios candidates
+                initAxiosAndDeps();
+            }, function () {
+                console.error('Failed to load VueRouter candidates. Components requiring router may not work.');
+                initAxiosAndDeps();
+            });
+        }, function () {
+            console.error('Failed to load Vue candidates. App cannot run without Vue.');
+            var el = document.getElementById('app');
+            if (el) el.innerHTML = '<div style="padding:24px;color:#d9534f">页面缺少 Vue，无法启动。</div>';
+        });
+
+        // 2) axios candidates and then deps
+        function initAxiosAndDeps() {
+            // determine basePath
+            var baseEl = document.querySelector('base');
+            var basePath = '/';
+            if (baseEl && baseEl.getAttribute('href')) {
+                basePath = baseEl.getAttribute('href');
+            } else {
+                var p = location.pathname || '/';
+                basePath = p.substring(0, p.lastIndexOf('/') + 1) || '/';
+            }
+            if (basePath.charAt(basePath.length - 1) !== '/') basePath += '/';
+
+            // axios candidates: CDN first, then the local path you confirmed, then derived candidates
+            var axiosCandidates = [
+                'https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js',
+                '/cloudClassroom/api/src/vendor/axios.min.js',
+                basePath + 'src/vendor/axios.min.js',
+                basePath + 'vendor/axios.min.js',
+                '/vendor/axios.min.js'
+            ];
+
+            function tryAxios(list, idx) {
+                if (window.axios) {
+                    console.info('axios already available');
+                    return onAxiosReady();
+                }
+                if (idx >= list.length) {
+                    console.error('All axios candidates failed.');
+                    return onAxiosFailed();
+                }
+                var src = list[idx];
+                loadScript(src, function (err) {
+                    if (!err && window.axios) {
+                        console.info('Loaded axios from', src);
+                        return onAxiosReady();
+                    } else {
+                        console.warn('axios candidate failed or did not provide axios:', src);
+                        tryAxios(list, idx + 1);
+                    }
+                });
+            }
+
+            // when axios ready, load dependent scripts sequentially
+            function onAxiosReady() {
+                var deps = [
+                    '/cloudClassroom/api/src/services/api.umd.js',
+                    '/cloudClassroom/api/src/services/userService.umd.js',
+                    '/cloudClassroom/api/src/components/HeaderBar.js',
+                    '/cloudClassroom/api/src/components/LoginPage.js',
+                    '/cloudClassroom/api/src/components/HomePage.js',
+                    '/cloudClassroom/api/src/components/ProfilePage.js',
+                    '/cloudClassroom/api/src/components/CoursePage.js',
+                    '/cloudClassroom/api/src/components/AdminPage.js',
+                    '/cloudClassroom/api/src/main.js'
+                ];
+
+                (function loadDepsSequentially(i) {
+                    if (i >= deps.length) {
+                        console.info('All dependent scripts loaded');
+                        return;
+                    }
+                    var src = deps[i];
+                    loadScript(src, function (err) {
+                        if (err) {
+                            console.error('Failed to load dependency:', src, err);
+                            // continue anyway
+                        } else {
+                            console.info('Loaded dependency:', src);
+                        }
+                        loadDepsSequentially(i + 1);
+                    });
+                })(0);
+            }
+
+            function onAxiosFailed() {
+                console.error('HTTP 客户端 (axios) 未加载，页面功能受限。');
+                var el = document.getElementById('app');
+                if (el) {
+                    el.innerHTML = '<div style="padding:24px;color:#d9534f;font-family:system-ui,Arial,Helvetica,sans-serif">页面缺少 HTTP 客户端 (axios)。请检查网络或联系管理员。</div>';
+                }
+            }
+
+            tryAxios(axiosCandidates, 0);
+        }
+    })();
+</script>
 </body>
 </html>

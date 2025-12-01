@@ -1,5 +1,5 @@
 // main.js (UMD global) - with router guard and global auth handler
-// Updated: added /courses route (CoursesPageComponent) and kept header mount per-page (no global mount)
+// Updated: add userRole normalization helpers and /admin route (AdminPageComponent)
 (function () {
     if (!window.Vue || !window.VueRouter) {
         console.error('Vue and VueRouter are required');
@@ -21,6 +21,66 @@
         window.UserService.init(store.apiBase);
     }
 
+    //
+    // User role mapping & normalization helpers
+    //
+    // Provide programmatic mappings between numeric codes and localized names.
+    // Accepts a variety of userRole string forms (English enum name, Chinese display, or numeric string)
+    window.USER_ROLE_CODES = {
+        STUDENT: 0,
+        TEACHER: 1,
+        COURSE_MANAGER: 2,
+        OPERATIONS: 3
+    };
+
+    // display names keyed by code
+    window.USER_ROLE_NAMES = {
+        0: '学生',
+        1: '教师',
+        2: '课程管理员',
+        3: '超级管理员'
+    };
+
+    // normalize a raw user object (mutates object) to include roleCode and roleName
+    // user.userRole may be: "STUDENT" | "学生" | "0" | 0 | "COURSE_MANAGER" | "课程管理员" | etc.
+    window.normalizeUserRole = function (userObj) {
+        if (!userObj) return null;
+        const raw = (userObj.userRole !== undefined && userObj.userRole !== null) ? String(userObj.userRole).trim() : '';
+        let code = null;
+        if (raw === '') {
+            // no role provided
+            code = null;
+        } else {
+            const r = raw.toUpperCase();
+            // english enum names
+            if (r === 'STUDENT') code = window.USER_ROLE_CODES.STUDENT;
+            else if (r === 'TEACHER') code = window.USER_ROLE_CODES.TEACHER;
+            else if (r === 'COURSE_MANAGER' || r === 'COURSEMANAGER') code = window.USER_ROLE_CODES.COURSE_MANAGER;
+            else if (r === 'OPERATIONS' || r === 'OPERATION' || r === 'ADMIN' || r === 'SUPER') code = window.USER_ROLE_CODES.OPERATIONS;
+            else {
+                // chinese names or numeric
+                if (raw === '学生' || raw === '0') code = window.USER_ROLE_CODES.STUDENT;
+                else if (raw === '教师' || raw === '1') code = window.USER_ROLE_CODES.TEACHER;
+                else if (raw === '课程管理员' || raw === '2') code = window.USER_ROLE_CODES.COURSE_MANAGER;
+                else if (raw === '超级管理员' || raw === '运维' || raw === '3') code = window.USER_ROLE_CODES.OPERATIONS;
+                else {
+                    // try parse integer
+                    const n = parseInt(raw, 10);
+                    if (!Number.isNaN(n) && (n in window.USER_ROLE_NAMES)) code = n;
+                    else code = null;
+                }
+            }
+        }
+        userObj.roleCode = (code === null ? null : Number(code));
+        userObj.roleName = (code === null ? (userObj.userRole || null) : window.USER_ROLE_NAMES[code]);
+        // Expose normalized token too if ApiCore has it
+        try {
+            const t = window.ApiCore ? window.ApiCore.getToken() : null;
+            if (t) userObj.token = t;
+        } catch (e) {}
+        return userObj;
+    };
+
     // Global auth-failed handler (called by ApiCore when it sees 401/403)
     window.onApiAuthFailed = function (status, resp) {
         try {
@@ -38,6 +98,7 @@
     const HomePage = window.HomePageComponent || { template: '<div>Home component missing</div>' };
     const ProfilePage = window.ProfilePageComponent || { template: '<div>Profile component missing</div>' };
     const CoursesPage = window.CoursesPageComponent || { template: '<div>Courses component missing</div>' };
+    const AdminPage = window.AdminPageComponent || { template: '<div>Admin component missing</div>' };
 
     const routes = [
         { path: '/', redirect: '/login' },
@@ -46,7 +107,10 @@
         // Authenticated routes
         { path: '/dashboard', component: HomePage, props: { store }, meta: { requiresAuth: true } },
         { path: '/profile', component: ProfilePage, props: { store }, meta: { requiresAuth: true } },
-        { path: '/courses', component: CoursesPage, props: { store }, meta: { requiresAuth: true } }
+        { path: '/courses', component: CoursesPage, props: { store }, meta: { requiresAuth: true } },
+
+        // management page (visible only to roleCode 2 or 3; route still protected by auth)
+        { path: '/admin', component: AdminPage, props: { store }, meta: { requiresAuth: true } }
     ];
 
     const router = createRouter({
@@ -73,18 +137,12 @@
                     .then(payload => {
                         if (payload && payload.data) {
                             store.user = payload.data;
-                            // copy token into store.user for convenience
-                            try {
-                                const t = window.ApiCore.getToken();
-                                if (t) store.user.token = t;
-                            } catch (e) {}
+                            // normalize role into store.user
+                            try { window.normalizeUserRole(store.user); } catch (e) {}
                             next();
                         } else if (payload && payload.code === 0 && payload.data) {
                             store.user = payload.data;
-                            try {
-                                const t = window.ApiCore.getToken();
-                                if (t) store.user.token = t;
-                            } catch (e) {}
+                            try { window.normalizeUserRole(store.user); } catch (e) {}
                             next();
                         } else {
                             // cannot get user, redirect
@@ -114,6 +172,6 @@
     console.info('App started. API base =', store.apiBase);
 
     // NOTE:
-    // - HeaderBar is mounted on-demand by pages that need it (HomePage, CoursesPage, ProfilePage).
-    // - Do not mount the header globally here to keep LoginPage clean.
+    // - HeaderBar is mounted on-demand by pages that need it (HomePage, CoursesPage, ProfilePage, AdminPage).
+    // - normalizeUserRole is available globally and is called after getUserInfo populates store.user.
 })();

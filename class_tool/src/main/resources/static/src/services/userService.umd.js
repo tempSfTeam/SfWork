@@ -76,7 +76,7 @@
         async logoutServer() {
             try {
                 // try call backend logout to invalidate server session/token
-                await ApiCore.get('/user/logout');
+                await ApiCore.post('/user/logout');
             } catch (e) {
                 // ignore server error but still clear local token
                 console.warn('logoutServer failed', e);

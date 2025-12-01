@@ -1,5 +1,4 @@
-// LoginPage (UMD) - 使用 window.UserService（已存在）进行 login & getUserInfo
-// 美化：居中卡片、整洁样式、可访问按钮、错误提示展示
+// LoginPage (UMD) - 防御式改造：若 ApiCore/UserService/axios 未就绪则给出友好提示，避免大量控制台报错
 (function () {
     const LoginPage = {
         props: ['store'],
@@ -12,17 +11,38 @@
                 verifyHint: '',
                 loading: false,
                 message: '',
-                uuid: ''
+                uuid: '',
+                clientMissing: false // 当缺少 Http client 或 UserService 时为 true
             };
         },
         async created() {
-            // 初始化 Api/UserService base（若有）
-            if (window.ApiCore && this.store && this.store.apiBase) {
-                window.ApiCore.setBaseURL(this.store.apiBase);
+            // Ensure ApiCore/UserService base if available
+            try {
+                if (window.ApiCore && this.store && this.store.apiBase) {
+                    window.ApiCore.setBaseURL(this.store.apiBase);
+                }
+                if (window.UserService && this.store && this.store.apiBase) {
+                    window.UserService.init(this.store.apiBase);
+                }
+            } catch (e) {
+                console.warn('init services failed', e);
             }
-            if (window.UserService && this.store && this.store.apiBase) {
-                window.UserService.init(this.store.apiBase);
+
+            // Detect essential dependencies early to avoid cascading errors
+            if (!window.axios && !(window.ApiCore && typeof window.ApiCore.get === 'function')) {
+                // No axios and no ApiCore fallback -> network client missing
+                this.clientMissing = true;
+                this.message = '页面缺少 HTTP 客户端 (axios)。请检查 index.html 是否包含 axios 脚本，或联系管理员。';
+                return;
             }
+            if (!window.UserService || typeof window.UserService.getVerifyCode !== 'function' || typeof window.UserService.login !== 'function') {
+                // ApiCore may exist but UserService failed to load
+                this.clientMissing = true;
+                this.message = '用户服务未就绪 (UserService)。请检查 userService.umd.js 是否正确加载。';
+                return;
+            }
+
+            // otherwise continue normal flow
             await this.fetchVerifyCode();
         },
         computed: {
@@ -55,11 +75,11 @@
         },
         methods: {
             async fetchVerifyCode() {
+                if (this.clientMissing) return;
                 this.verifyMap = null;
                 this.verifyHint = '';
                 this.uuid = '';
                 try {
-                    // Prefer UserService if available
                     let res;
                     if (window.UserService && typeof window.UserService.getVerifyCode === 'function') {
                         res = await window.UserService.getVerifyCode();
@@ -76,11 +96,9 @@
                     let payload = res;
                     if (res && res.data !== undefined) payload = res.data;
 
-                    // extract actual verify object or string
                     let v = payload && payload.data !== undefined ? payload.data : payload;
                     this.verifyMap = v;
 
-                    // try extract uuid
                     if (v && (v.uuid || v.uuidStr || v.id)) {
                         this.uuid = v.uuid || v.uuidStr || v.id;
                     } else if (payload && payload.uuid) {
@@ -95,12 +113,15 @@
             },
 
             async submitLogin() {
+                if (this.clientMissing) {
+                    this.message = '页面依赖未就绪，无法登录。请检查控制台或联系管理员。';
+                    return;
+                }
                 this.message = '';
                 if (!this.name || !this.password) {
                     this.message = '请输入用户名和密码';
                     return;
                 }
-                // require verify input
                 if (!this.verifyInput || !this.verifyInput.toString().trim()) {
                     this.message = '请输入验证码';
                     return;
@@ -114,9 +135,12 @@
                         uncheckedCode: this.verifyInput,
                         uuid: this.uuid || undefined
                     };
+                    // defensive: ensure UserService exists
+                    if (!window.UserService || typeof window.UserService.login !== 'function') {
+                        throw new Error('UserService 未就绪');
+                    }
                     const payload = await window.UserService.login(body);
                     if (payload && (payload.code === 0 || payload.code === undefined || payload.code === 200)) {
-                        // attempt getUserInfo
                         try {
                             const infoPayload = await window.UserService.getUserInfo();
                             if (infoPayload && infoPayload.data) {
@@ -126,12 +150,14 @@
                             } else {
                                 this.store.user = payload.data || { name: this.name };
                             }
+                            // normalize role immediately so header and pages can read roleCode/roleName
+                            try { if (window.normalizeUserRole) window.normalizeUserRole(this.store.user); } catch (e) {}
                         } catch (e) {
                             console.warn('getUserInfo failed after login', e);
                             this.store.user = payload.data || { name: this.name };
+                            try { if (window.normalizeUserRole) window.normalizeUserRole(this.store.user); } catch (e) {}
                         }
                         this.message = '登录成功';
-                        // redirect to dashboard
                         this.$router.push('/dashboard');
                     } else {
                         this.message = (payload && (payload.message || payload.msg)) || '登录失败';
