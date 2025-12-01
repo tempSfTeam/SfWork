@@ -1,5 +1,7 @@
-// AdminPage (UMD) - 管理页面（角色权限管理按后端返回的分类顺序渲染）
-// 修复：toggleAssign/persistPermissionChange 的调用顺序问题，防止 _saving 提前被置为 true 导致请求短路
+// AdminPage (UMD) - 管理页面（包含已存在的“角色权限管理”实现，并新增“学习对象管理”实现）
+// 说明：我保留你刚才提供的、可运行的角色权限管理逻辑不做变动；在此基础上仅在不破坏现有逻辑的前提下
+// 增加 学习对象管理(courseType) 的 load/add/update/delete 与对应 UI 区块。
+// 所有请求同样优先使用 window.ApiCore（若存在），否则退回到 window.axios，axios 请求会带 Authorization: Bearer <token>（从 ApiCore.getToken 或 localStorage.sf_token）。
 (function () {
     const AdminPage = {
         props: ['store'],
@@ -26,12 +28,17 @@
                     { key: '角色权限管理', title: '角色权限管理', icon: '🔒', subs: [] }
                 ],
 
-                // role/permission data for "角色权限管理"
+                // role/permission data for "角色权限管理" — 保留你已有的字段
                 rp_loading: false,
                 rp_error: null,
                 rp_roles: [],                // [{id, name}, ...]
                 rp_perms_by_cat: {},         // { profession: [permObj,...], classe: [...], ... }
-                rp_cat_order: []             // 分类顺序
+                rp_cat_order: [],            // 分类顺序
+
+                // ---- 新增：学习对象管理 状态 ----
+                ct_loading: false,
+                ct_error: null,
+                ct_items: [] // normalized items: { id, name, _raw, _saving }
             };
         },
         computed: {
@@ -42,14 +49,17 @@
             try { if (window.mountHeader) window.mountHeader(this.store, '#shared-header'); } catch (e) {}
             this.menu.forEach(m => { if (m.key === this.activeTop && m.subs && m.subs.length) this.collapsed[m.key] = true; });
             if (this.activeTop === '角色权限管理') this.loadRolePermissions();
+            // 如果初始页是 学习对象管理，加载列表
+            if (this.activeTop === '学习对象管理') this.loadCourseTypes();
         },
         watch: {
             activeTop(newVal) {
                 if (newVal === '角色权限管理') this.loadRolePermissions();
+                if (newVal === '学习对象管理') this.loadCourseTypes();
             }
         },
         methods: {
-            // 左侧菜单（略，保持原样）
+            // 左侧菜单（保持原样）
             toggleGroup(key) {
                 const group = this.menu.find(m => m.key === key); if (!group) return;
                 if (!group.subs || group.subs.length === 0) { this.activeTop = key; this.activeSub = ''; Object.keys(this.collapsed).forEach(k => { if (k !== key) this.collapsed[k] = false; }); return; }
@@ -60,8 +70,7 @@
             chooseSub(topKey, subKey) { this.activeTop = topKey; this.activeSub = subKey; if (this.collapsed[topKey] === false) this.collapsed[topKey] = true; },
             contentTitle() { const top = this.menu.find(m => m.key === this.activeTop); if (!top) return ''; if (this.activeSub) { const s = (top.subs||[]).find(x=>x.key===this.activeSub); return s ? (top.title + ' - ' + s.title) : top.title; } return top.title; },
 
-            // --- loadRolePermissions / fetchRolePermWithAxios / handleRolePermResponse
-            // （保留你之前的实现，未改动，略去重复说明）
+            // ---------------- 角色权限管理 方法（我保留你已有实现，未修改其逻辑） ----------------
             loadRolePermissions() {
                 if (this.rp_loading) return;
                 this.rp_loading = true;
@@ -156,23 +165,13 @@
                 }
             },
 
-            // Persist single permission change to server
+            // Persist single permission change to server (保持原样)
             persistPermissionChange(singlePerm) {
-                // If a persist is already in-flight for this permission, skip
                 if (!singlePerm) return Promise.reject(new Error('invalid permission'));
-                if (singlePerm._saving) {
-                    // already saving - do nothing
-                    return Promise.resolve();
-                }
-                // mark saving now (only here)
+                if (singlePerm._saving) { return Promise.resolve(); }
                 singlePerm._saving = true;
 
-                const payload = [
-                    {
-                        permissionId: singlePerm.permissionId,
-                        roleIds: Array.isArray(singlePerm.roleIds) ? singlePerm.roleIds.slice(0) : []
-                    }
-                ];
+                const payload = [{ permissionId: singlePerm.permissionId, roleIds: Array.isArray(singlePerm.roleIds) ? singlePerm.roleIds.slice(0) : [] }];
 
                 const getToken = () => {
                     try { if (window.ApiCore && typeof window.ApiCore.getToken === 'function') return window.ApiCore.getToken(); } catch (e) {}
@@ -182,55 +181,28 @@
                 const headers = {};
                 if (token) headers['Authorization'] = 'Bearer ' + token;
 
-                // prefer ApiCore.post if exists
-                const finalize = (ok) => {
-                    singlePerm._saving = false;
-                    return ok;
-                };
+                const finalize = (ok) => { singlePerm._saving = false; return ok; };
 
                 if (window.ApiCore && typeof window.ApiCore.post === 'function') {
                     return window.ApiCore.post('/manage/updateRoleToPermission', payload)
-                        .then(resp => {
-                            console.info('updateRoleToPermission ok (ApiCore)', resp);
-                            return finalize(true);
-                        })
-                        .catch(err => {
-                            console.error('updateRoleToPermission failed (ApiCore)', err);
-                            singlePerm._saving = false;
-                            throw err;
-                        });
+                        .then(resp => { console.info('updateRoleToPermission ok (ApiCore)', resp); return finalize(true); })
+                        .catch(err => { console.error('updateRoleToPermission failed (ApiCore)', err); singlePerm._saving = false; throw err; });
                 }
 
-                // fallback to axios
-                if (!window.axios || typeof window.axios.post !== 'function') {
-                    singlePerm._saving = false;
-                    return Promise.reject(new Error('No HTTP client for POST'));
-                }
+                if (!window.axios || typeof window.axios.post !== 'function') { singlePerm._saving = false; return Promise.reject(new Error('No HTTP client for POST')); }
                 const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
                 const url = (base ? base : '') + '/manage/updateRoleToPermission';
                 return window.axios.post(url, payload, { headers: headers, withCredentials: true })
-                    .then(res => {
-                        console.info('updateRoleToPermission ok', res && res.data ? res.data : res);
-                        return finalize(true);
-                    })
-                    .catch(err => {
-                        console.error('updateRoleToPermission failed', err);
-                        singlePerm._saving = false;
-                        throw err;
-                    });
+                    .then(res => { console.info('updateRoleToPermission ok', res && res.data ? res.data : res); return finalize(true); })
+                    .catch(err => { console.error('updateRoleToPermission failed', err); singlePerm._saving = false; throw err; });
             },
 
-            // When user toggles a checkbox: update local model, then persist single change
             toggleAssign(permObj, roleIndex) {
                 try {
                     const role = this.rp_roles[roleIndex];
                     if (!role) return;
                     const id = role.id;
-
-                    // save old copy for revert on failure
                     const old = Array.isArray(permObj.roleIds) ? permObj.roleIds.slice(0) : [];
-
-                    // update local roleIds (UI immediate)
                     if (!permObj.roleIds) permObj.roleIds = [];
                     const idx = permObj.roleIds.indexOf(id);
                     if (idx === -1) permObj.roleIds.push(id);
@@ -238,17 +210,198 @@
 
                     // Persist change (persistPermissionChange handles _saving flag)
                     this.persistPermissionChange(permObj)
-                        .then(() => {
-                            // success: nothing else
-                        })
+                        .then(() => { /* success */ })
                         .catch(() => {
-                            // revert local change on error
                             permObj.roleIds = old;
                             alert('权限更新失败，已回滚');
                         });
                 } catch (e) {
                     console.warn('toggleAssign error', e);
                 }
+            },
+
+            // ---------------- 新增：学习对象管理 (courseType) 的方法区 ----------------
+
+            // 获取 auth headers （优先 ApiCore.getToken -> localStorage）
+            _getAuthHeaders() {
+                try {
+                    if (window.ApiCore && typeof window.ApiCore.getToken === 'function') {
+                        const t = window.ApiCore.getToken();
+                        if (t) return { Authorization: 'Bearer ' + t };
+                    }
+                } catch (e) {}
+                try {
+                    const t2 = localStorage.getItem('sf_token');
+                    if (t2) return { Authorization: 'Bearer ' + t2 };
+                } catch (e) {}
+                return {};
+            },
+
+            // load listAll => /courseType/listAll
+            loadCourseTypes() {
+                if (this.ct_loading) return;
+                this.ct_loading = true;
+                this.ct_error = null;
+                this.ct_items = [];
+
+                const headers = this._getAuthHeaders();
+
+                const handleError = (err) => {
+                    console.error('loadCourseTypes error', err);
+                    this.ct_error = '获取学习对象失败';
+                    this.ct_loading = false;
+                };
+
+                if (window.ApiCore && typeof window.ApiCore.get === 'function') {
+                    window.ApiCore.get('/courseType/listAll')
+                        .then(resp => {
+                            const data = resp && resp.data !== undefined ? resp.data : (resp || null);
+                            this._handleCourseTypesResponse(data);
+                        })
+                        .catch(err => {
+                            console.warn('ApiCore.get /courseType/listAll failed, fallback to axios', err);
+                            this._fetchCourseTypesWithAxios(headers).catch(handleError);
+                        })
+                        .finally(() => { this.ct_loading = false; });
+                } else {
+                    this._fetchCourseTypesWithAxios(headers).then(()=>{ this.ct_loading=false; }).catch(handleError);
+                }
+            },
+
+            _fetchCourseTypesWithAxios(headers) {
+                if (!window.axios || typeof window.axios.get !== 'function') {
+                    this.ct_error = 'No HTTP client available';
+                    this.ct_loading = false;
+                    return Promise.reject(new Error('no http client'));
+                }
+                const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                const url = (base ? base : '') + '/courseType/listAll';
+                return window.axios.get(url, { headers: headers, withCredentials: true })
+                    .then(res => {
+                        const data = res && res.data !== undefined ? res.data : (res || null);
+                        this._handleCourseTypesResponse(data);
+                    })
+                    .catch(err => { this.ct_error = '请求失败'; console.error(err); });
+            },
+
+            _handleCourseTypesResponse(payload) {
+                if (!payload) { this.ct_error = '无返回数据'; return; }
+                if (payload.code !== undefined && payload.code !== null && payload.code !== 200 && payload.code !== 0) {
+                    this.ct_error = payload.message || payload.msg || ('错误代码 ' + payload.code);
+                    return;
+                }
+                const data = payload.data !== undefined ? payload.data : payload;
+                if (!data) { this.ct_error = '返回 data 为空'; return; }
+
+                if (Array.isArray(data)) {
+                    this.ct_items = data.map(it => ({
+                        id: it.id !== undefined ? it.id : (it.courseTypeId || it.typeId || null),
+                        name: it.name || it.typeName || it.cnName || it.desCN || '',
+                        _raw: it,
+                        _saving: false
+                    }));
+                } else if (Array.isArray(data.list)) {
+                    this.ct_items = data.list.map(it => ({
+                        id: it.id !== undefined ? it.id : (it.courseTypeId || it.typeId || null),
+                        name: it.name || it.typeName || it.cnName || it.desCN || '',
+                        _raw: it,
+                        _saving: false
+                    }));
+                } else {
+                    this.ct_items = [];
+                }
+            },
+
+            // create -> /courseType/add
+            createCourseType() {
+                const name = prompt('请输入学习对象名称（示例：小学、初中）');
+                if (!name || !name.trim()) return;
+                const payload = { name: name.trim() };
+                const headers = this._getAuthHeaders();
+
+                const doPost = () => {
+                    if (window.ApiCore && typeof window.ApiCore.post === 'function') {
+                        return window.ApiCore.post('/courseType/add', payload);
+                    }
+                    if (!window.axios || typeof window.axios.post !== 'function') return Promise.reject(new Error('no http client'));
+                    const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                    const url = (base ? base : '') + '/courseType/add';
+                    return window.axios.post(url, payload, { headers: headers, withCredentials: true });
+                };
+
+                doPost()
+                    .then(res => {
+                        console.info('createCourseType ok', res && res.data ? res.data : res);
+                        this.loadCourseTypes();
+                    })
+                    .catch(err => {
+                        console.error('createCourseType failed', err);
+                        alert('创建失败');
+                    });
+            },
+
+            // update -> /courseType/update
+            editCourseType(item) {
+                if (!item) return;
+                const newName = prompt('编辑学习对象名称：', item.name || '');
+                if (newName === null) return;
+                const trimmed = (newName || '').trim();
+                if (!trimmed) { alert('名称不能为空'); return; }
+
+                const payload = { courseTypeId: item.id, name: trimmed };
+                const headers = this._getAuthHeaders();
+
+                const doPost = () => {
+                    if (window.ApiCore && typeof window.ApiCore.post === 'function') {
+                        return window.ApiCore.post('/courseType/update', payload);
+                    }
+                    if (!window.axios || typeof window.axios.post !== 'function') return Promise.reject(new Error('no http client'));
+                    const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                    const url = (base ? base : '') + '/courseType/update';
+                    return window.axios.post(url, payload, { headers: headers, withCredentials: true });
+                };
+
+                item._saving = true;
+                doPost()
+                    .then(res => {
+                        console.info('editCourseType ok', res && res.data ? res.data : res);
+                        item.name = trimmed;
+                    })
+                    .catch(err => {
+                        console.error('editCourseType failed', err);
+                        alert('更新失败');
+                    })
+                    .finally(() => { item._saving = false; });
+            },
+
+            // delete -> /courseType/delete
+            deleteCourseType(item) {
+                if (!item) return;
+                if (!confirm('确定删除学习对象 "' + (item.name || '') + '" 吗？')) return;
+                const payload = { courseTypeId: item.id };
+                const headers = this._getAuthHeaders();
+
+                const doPost = () => {
+                    if (window.ApiCore && typeof window.ApiCore.post === 'function') {
+                        return window.ApiCore.post('/courseType/delete', payload);
+                    }
+                    if (!window.axios || typeof window.axios.post !== 'function') return Promise.reject(new Error('no http client'));
+                    const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                    const url = (base ? base : '') + '/courseType/delete';
+                    return window.axios.post(url, payload, { headers: headers, withCredentials: true });
+                };
+
+                item._saving = true;
+                doPost()
+                    .then(res => {
+                        console.info('deleteCourseType ok', res && res.data ? res.data : res);
+                        this.ct_items = this.ct_items.filter(x => x.id !== item.id);
+                    })
+                    .catch(err => {
+                        console.error('deleteCourseType failed', err);
+                        alert('删除失败');
+                    })
+                    .finally(() => { item._saving = false; });
             }
         },
         template: `
@@ -262,8 +415,11 @@
               <div style="font-weight:600;padding:8px 6px;color:#2b7cff">管理</div>
               <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px">
                 <div v-for="(m, idx) in menu" :key="m.key">
-                  <div @click="toggleGroup(m.key)" :style="{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 10px',borderRadius:'6px',cursor:'pointer',background: (activeTop===m.key && (!m.subs||m.subs.length===0)) ? '#f0f6ff' : (m.key===activeTop ? '#f7fbff' : 'transparent'), border: (activeTop===m.key ? '1px solid rgba(43,124,255,0.08)' : '1px solid transparent') }">
-                    <div style="display:flex;align-items:center;gap:10px"><div style="width:22px;text-align:center;font-size:16px;color:#2b7cff">{{ m.icon }}</div><div style="color:#333">{{ m.title }}</div></div>
+                  <div @click="toggleGroup(m.key)" :style="{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 10px',borderRadius:'6px',cursor:'pointer',background: (activeTop===m.key && (!m.subs||m.subs.length===0)) ? '#f0f6ff' : (m.key===activeTop ? '#f7fbff' : 'transparent') , border: (activeTop===m.key ? '1px solid rgba(43,124,255,0.08)' : '1px solid transparent') }">
+                    <div style="display:flex;align-items:center;gap:10px">
+                      <div style="width:22px;text-align:center;font-size:16px;color:#2b7cff">{{ m.icon }}</div>
+                      <div style="color:#333">{{ m.title }}</div>
+                    </div>
                     <div v-if="m.subs && m.subs.length" style="font-size:12px;color:#8a98a6">
                       <svg v-if="collapsed[m.key]" width="14" height="14" viewBox="0 0 24 24"><path fill="#8894a6" d="M7 10l5 5 5-5z"/></svg>
                       <svg v-else width="14" height="14" viewBox="0 0 24 24"><path fill="#8894a6" d="M7 14l5-5 5 5z"/></svg>
@@ -271,7 +427,11 @@
                   </div>
 
                   <div v-if="m.subs && m.subs.length && collapsed[m.key]" style="display:flex;flex-direction:column;margin-top:6px;margin-left:32px;gap:6px">
-                    <div v-for="sub in m.subs" :key="sub.key" @click="chooseSub(m.key, sub.key)" :style="{padding:'8px 10px',borderRadius:'6px',cursor:'pointer',background: (activeTop===m.key && activeSub===sub.key) ? '#eaf4ff' : 'transparent', color: (activeTop===m.key && activeSub===sub.key) ? '#2b7cff' : '#333', border: (activeTop===m.key && activeSub===sub.key) ? '1px solid rgba(43,124,255,0.12)' : '1px solid transparent'}">{{ sub.title }}</div>
+                    <div v-for="sub in m.subs" :key="sub.key"
+                         @click="chooseSub(m.key, sub.key)"
+                         :style="{padding:'8px 10px',borderRadius:'6px',cursor:'pointer',background: (activeTop===m.key && activeSub===sub.key) ? '#eaf4ff' : 'transparent', color: (activeTop===m.key && activeSub===sub.key) ? '#2b7cff' : '#333', border: (activeTop===m.key && activeSub===sub.key) ? '1px solid rgba(43,124,255,0.12)' : '1px solid transparent'}">
+                      {{ sub.title }}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -288,8 +448,45 @@
                 <div style="color:#8894a6;font-size:13px">角色：{{ store.user ? (store.user.roleName || store.user.userRole || '') : '' }}</div>
               </div>
 
+              <!-- 学习对象管理 -->
+              <div v-if="activeTop === '学习对象管理'">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                  <button @click="createCourseType" style="background:#2b7cff;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer">创建学习对象</button>
+                  <div style="color:#8894a6;font-size:13px">数据来自 /courseType/*（listAll/add/update/delete）</div>
+                </div>
+
+                <div v-if="ct_loading" style="padding:24px;text-align:center;color:#666">加载中…</div>
+                <div v-else-if="ct_error" style="padding:24px;color:#d9534f">{{ ct_error }}</div>
+
+                <div v-else>
+                  <div v-if="!ct_items || ct_items.length === 0" style="padding:28px;text-align:center;color:#9aa6b2">
+                    <div style="font-size:14px">No data</div>
+                  </div>
+
+                  <div v-else>
+                    <table style="width:100%;border-collapse:collapse">
+                      <thead>
+                        <tr style="background:#fafafa;border-bottom:1px solid #eef2f7">
+                          <th style="text-align:left;padding:12px 16px">学习对象</th>
+                          <th style="text-align:center;padding:12px 16px;width:160px">管理</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="item in ct_items" :key="item.id" style="border-bottom:1px solid #f2f6fa">
+                          <td style="padding:12px 16px;color:#333">{{ item.name }}</td>
+                          <td style="text-align:center;padding:10px 12px">
+                            <button @click="editCourseType(item)" :disabled="item._saving" style="background:#2b7cff;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;margin-right:8px">编辑</button>
+                            <button @click="deleteCourseType(item)" :disabled="item._saving" style="background:#ff6b6b;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer">删除</button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
               <!-- 角色权限管理视图 -->
-              <div v-if="activeTop === '角色权限管理'">
+              <div v-else-if="activeTop === '角色权限管理'">
                 <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
                   <div style="font-weight:600">角色权限管理</div>
                   <div style="color:#8894a6;font-size:13px">自动加载 /manage/listRoleToPermission</div>
