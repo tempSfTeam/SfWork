@@ -3,6 +3,7 @@ export default {
     title: 'UserVO',
     fields: [
         { name: 'name', label: '用户名', type: 'string' },
+        { name: 'username', label: '用户名', type: 'string' },
         { name: 'avatar', label: '头像', type: 'string' },
         { name: 'phone', label: '电话', type: 'string' },
         { name: 'email', label: '邮箱', type: 'string' },

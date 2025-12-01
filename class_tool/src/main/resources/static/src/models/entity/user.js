@@ -5,7 +5,9 @@ export default {
     fields: [
         { name: 'userId', label: '用户ID', type: 'number', readonly: true },
         { name: 'name', label: '用户名', type: 'string', required: true },
+        { name: 'username', label: '用户名', type: 'string' },
         { name: 'password', label: '密码', type: 'string', inputType: 'password' },
+        { name: 'schoolNumber', label: '学号', type: 'string' },
         { name: 'avatar', label: '头像', type: 'string' },
         { name: 'phone', label: '电话', type: 'string' },
         { name: 'email', label: '邮箱', type: 'string' },
