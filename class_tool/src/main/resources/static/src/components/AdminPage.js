@@ -49,6 +49,29 @@
                 },
                 cl_autoFilterDebounce: null,
 
+                user_loading: false,
+                user_error: null,
+                user_items: [],         // 列表项 (每项包含 userId, username, phone, email, role, classeId, schoolId, _raw, _saving)
+                user_search: '',        // 搜索关键词（用户名或账号）
+                user_roleFilter: '',    // 角色筛选（例如: 'STUDENT','TEACHER' 等）
+                user_modalVisible: false,
+                user_form: {
+                    userId: null,
+                    name: '',
+                    password: '', // 创建时必填，编辑时可空或省略
+                    phone: '',
+                    email: '',
+                    classeId: null,
+                    schoolId: null,
+                    role: '', // 与后端角色标识对应
+                    schoolNumber: '' // 新增：工号/学号（字符串，必填）
+                },
+                user_editMode: false,// modal 是新增还是编辑
+                user_class_options: [], // [{ id, name }] — 班级下拉用于用户 modal（由 /classe/listAllBySchoolId 填充）
+                user_current: 1,   // 当前页
+                user_size: 10,     // 每页条数
+                user_total: 0,      // 总条数（来自后端）
+
                 // --- 学习对象管理（courseType）
                 ct_loading: false,
                 ct_error: null,
@@ -70,7 +93,20 @@
         },
         computed: {
             roleCode() { return this.store && this.store.user ? this.store.user.roleCode : null; },
-            allowed() { return this.roleCode === 2 || this.roleCode === 3; }
+            allowed() { return this.roleCode === 2 || this.roleCode === 3; },
+            userFormValid() {
+                if (!this.user_form) return false;
+                const hasName = (this.user_form.username || '').trim().length > 0;
+                const hasRole = (this.user_form.role !== '' && this.user_form.role !== null && this.user_form.role !== undefined);
+                const hasSchoolNumber = (this.user_form.schoolNumber || '').trim().length > 0;
+                if (this.user_editMode) {
+                    // 编辑时也要求工号/学号必填
+                    return hasName && !!hasRole && hasSchoolNumber;
+                } else {
+                    const hasPassword = (this.user_form.password || '').trim().length > 0;
+                    return hasName && hasPassword && !!hasRole && hasSchoolNumber;
+                }
+            }
         },
         mounted() {
             try { if (window.mountHeader) window.mountHeader(this.store, '#shared-header'); } catch (e) {}
@@ -617,6 +653,348 @@
             },
 
             // ------------------------------------------------------------------
+            // ===================== 用户（user） =========================
+            // ------------------------------------------------------------------
+// ----------------- 用户管理 /manage/* -----------------
+
+// 加载用户列表（支持 search 与 role 过滤）
+            loadUsers(searchStr, role, current, size) {
+                // 更新本地筛选条件
+                this.user_search = searchStr !== undefined ? searchStr : (this.user_search || '');
+                if (role !== undefined) this.user_roleFilter = role;
+
+                // 支持传入 page/size，否则用 state
+                this.user_current = (current !== undefined && current !== null) ? Number(current) : (this.user_current || 1);
+                this.user_size = (size !== undefined && size !== null) ? Number(size) : (this.user_size || 10);
+
+                if (this.user_loading) return;
+                this.user_loading = true;
+                this.user_error = null;
+                this.user_items = [];
+
+                const headers = this._getAuthHeaders();
+                const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                const url = (base ? base : '') + '/manage/getAllUser';
+
+                // Build params and include role only when it's a valid number
+                const params = { searchStr: this.user_search || '', current: this.user_current, size: this.user_size };
+                if (this.user_roleFilter !== '' && this.user_roleFilter !== null && this.user_roleFilter !== undefined) {
+                    const maybeNum = Number(this.user_roleFilter);
+                    if (!Number.isNaN(maybeNum)) params.role = maybeNum;
+                }
+
+                if (window.ApiCore && typeof window.ApiCore.get === 'function') {
+                    const qs = Object.keys(params).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&');
+                    return window.ApiCore.get(url + '?' + qs)
+                        .then(resp => {
+                            const data = resp && resp.data !== undefined ? resp.data : (resp || null);
+                            this._handleUsersResponse(data);
+                        })
+                        .catch(err => {
+                            console.warn('ApiCore.get /manage/getAllUser failed, fallback to axios', err);
+                            return this._fetchUsersWithAxios(params, headers);
+                        })
+                        .finally(() => { this.user_loading = false; });
+                } else {
+                    return this._fetchUsersWithAxios(params, headers)
+                        .then(() => { this.user_loading = false; })
+                        .catch(err => { this.user_error = '请求失败'; this.user_loading = false; console.error(err); });
+                }
+            },
+
+// axios helper unchanged except it uses params passed in
+            _fetchUsersWithAxios(params, headers) {
+                if (!window.axios || typeof window.axios.get !== 'function') { this.user_error='No HTTP client'; this.user_loading=false; return Promise.reject(new Error('no http client')); }
+                const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                const url = (base ? base : '') + '/manage/getAllUser';
+                return window.axios.get(url, { params: params, headers: headers, withCredentials: true })
+                    .then(res => {
+                        const data = res && res.data !== undefined ? res.data : (res || null);
+                        this._handleUsersResponse(data);
+                    })
+                    .catch(err => { this.user_error='请求失败'; console.error(err); });
+            },
+
+// 处理响应并尝试解析 total（兼容多种后端包装）
+            _handleUsersResponse(payload) {
+                if (!payload) { this.user_error = '无返回数据'; this.user_items = []; this.user_total = 0; return; }
+                if (payload.code !== undefined && payload.code !== null && payload.code !== 200 && payload.code !== 0) {
+                    this.user_error = payload.message || payload.msg || ('错误代码 ' + payload.code);
+                    this.user_items = []; this.user_total = 0; return;
+                }
+
+                // 可能的数据容器
+                const data = payload.data !== undefined ? payload.data : payload;
+
+                // 提取数组（records/list/data/直接数组）
+                let arr = [];
+                if (Array.isArray(data)) arr = data;
+                else if (Array.isArray(data.records)) arr = data.records;
+                else if (Array.isArray(data.list)) arr = data.list;
+                else if (Array.isArray(data.data)) arr = data.data;
+                else {
+                    for (const k of Object.keys(data || {})) { if (Array.isArray(data[k])) { arr = data[k]; break; } }
+                }
+
+                // 提取 total（常见位置）
+                let total = 0;
+                if (data.total !== undefined && Number.isFinite(Number(data.total))) total = Number(data.total);
+                else if (data.page && (data.page.total !== undefined)) total = Number(data.page.total);
+                else if (payload.total !== undefined) total = Number(payload.total);
+                else if (payload.data && payload.data.total !== undefined) total = Number(payload.data.total);
+
+                this.user_items = arr.map(u => ({
+                    userId: u.userId !== undefined ? u.userId : (u.id || u.user_id || null),
+                    username: u.username || u.name || u.userName || '',
+                    phone: u.phone || u.mobile || '',
+                    email: u.email || u.mail || '',
+                    role: (u.role !== undefined ? u.role : (u.roleName || u.userRole || '')),
+                    classeId: u.classeId || u.classId || null,
+                    schoolId: u.schoolId || u.school_id || null,
+                    _raw: u,
+                    _saving: false
+                }));
+
+                this.user_total = Number.isFinite(Number(total)) ? Number(total) : (this.user_items.length || 0);
+            },
+
+// 分页控制方法（供 UI 调用）
+            onUserPageChange(newPage) {
+                const page = Number(newPage) || 1;
+                this.loadUsers(this.user_search, this.user_roleFilter, page, this.user_size);
+            },
+            onUserSizeChange(newSize) {
+                const size = Number(newSize) || 10;
+                this.loadUsers(this.user_search, this.user_roleFilter, 1, size);
+            },
+            // Add this method
+            loadClassesForUserModal(schoolId) {
+                // if no schoolId, clear options
+                if (!schoolId) { this.user_class_options = []; return Promise.resolve(); }
+                const headers = this._getAuthHeaders();
+                const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                const url = (base ? base : '') + '/classe/listAllBySchoolId';
+                const params = { current: 1, size: -1, searchStr: '', schoolId: schoolId }; // <-- include searchStr: ''
+
+                if (window.ApiCore && typeof window.ApiCore.get === 'function') {
+                    return window.ApiCore.get(url + '?current=1&size=-1&searchStr=' + encodeURIComponent(params.searchStr) + '&schoolId=' + encodeURIComponent(schoolId))
+                        .then(resp => {
+                            const data = resp && resp.data !== undefined ? resp.data : (resp || null);
+                            // extract array similar to _handleClassesResponse but produce minimal list
+                            let candidate = data !== undefined && data.data !== undefined ? data.data : data;
+                            let arr = [];
+                            if (Array.isArray(candidate)) arr = candidate;
+                            else if (Array.isArray(candidate.list)) arr = candidate.list;
+                            else if (Array.isArray(candidate.records)) arr = candidate.records;
+                            else if (candidate.page && Array.isArray(candidate.page.records)) arr = candidate.page.records;
+                            else {
+                                for (const k of Object.keys(candidate || {})) { if (Array.isArray(candidate[k])) { arr = candidate[k]; break; } }
+                            }
+                            this.user_class_options = arr.map(c => ({ id: c.classeId !== undefined ? c.classeId : (c.id || null), name: c.name || c.classeName || String(c.classeId || c.id || '') }));
+                        })
+                        .catch(err => {
+                            console.warn('loadClassesForUserModal ApiCore failed', err);
+                            return this._fetchClassesForUserModalWithAxios(params, headers);
+                        });
+                } else {
+                    return this._fetchClassesForUserModalWithAxios(params, headers);
+                }
+            },
+
+            _fetchClassesForUserModalWithAxios(params, headers) {
+                if (!window.axios || typeof window.axios.get !== 'function') { this.user_class_options = []; return Promise.reject(new Error('no http client')); }
+                const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                const url = (base ? base : '') + '/classe/listAllBySchoolId';
+                return window.axios.get(url, { params: params, headers: headers, withCredentials: true })
+                    .then(res => {
+                        const data = res && res.data !== undefined ? res.data : (res || null);
+                        let candidate = data !== undefined && data.data !== undefined ? data.data : data;
+                        let arr = [];
+                        if (Array.isArray(candidate)) arr = candidate;
+                        else if (Array.isArray(candidate.list)) arr = candidate.list;
+                        else if (Array.isArray(candidate.records)) arr = candidate.records;
+                        else if (candidate.page && Array.isArray(candidate.page.records)) arr = candidate.page.records;
+                        else {
+                            for (const k of Object.keys(candidate || {})) { if (Array.isArray(candidate[k])) { arr = candidate[k]; break; } }
+                        }
+                        this.user_class_options = arr.map(c => ({ id: c.classeId !== undefined ? c.classeId : (c.id || null), name: c.name || c.classeName || String(c.classeId || c.id || '') }));
+                    })
+                    .catch(err => { console.error('fetch classes for modal failed', err); this.user_class_options = []; });
+            },
+
+
+// open create modal
+            openCreateUserModal() {
+                // ensure school and class lists available for dropdowns if needed
+                this.loadSchools(); // optional: ensures sch_items populated
+                this.user_form = { userId: null, username: '', password: '', phone: '', email: '', classeId: null, schoolId: null, role: '' };
+                this.user_editMode = false;
+                this.user_modalVisible = true;
+                this.user_modalVisible = true;
+                this.user_form.schoolId = this.user_form.schoolId || (this.sch_items && this.sch_items.length ? this.sch_items[0].schoolId : null);
+                if (this.user_form.schoolId) this.loadClassesForUserModal(this.user_form.schoolId);
+            },
+
+// open edit modal (prefill form)
+            openEditUserModal(item) {
+                if (!item) return;
+                this.loadSchools(); // ensure school list if you want to change school
+                this.user_form = {
+                    userId: item.userId,
+                    username: item.username || '',
+                    password: '', // leave empty so backend knows not to change
+                    phone: item.phone || '',
+                    email: item.email || '',
+                    classeId: item.classeId || null,
+                    schoolId: item.schoolId || null,
+                    role: item.role || ''
+                };
+                this.user_editMode = true;
+                this.user_modalVisible = true;
+                this.user_modalVisible = true;
+                if (this.user_form.schoolId) this.loadClassesForUserModal(this.user_form.schoolId);
+            },
+
+            closeUserModal() {
+                this.user_modalVisible = false;
+            },
+
+// submit create or update
+            submitUserModal() {
+                const headers = this._getAuthHeaders();
+
+                // 基本必填校验
+                if (!this.user_form.username || !this.user_form.username.trim()) {
+                    alert('用户名不能为空');
+                    return;
+                }
+
+                // 工号/学号 必填
+                if (!this.user_form.schoolNumber || !this.user_form.schoolNumber.trim()) {
+                    alert('工号/学号不能为空');
+                    return;
+                }
+
+                // 角色必填（允许为数字 0）
+                const rawRole = this.user_form.role;
+                if (rawRole === '' || rawRole === null || rawRole === undefined) {
+                    alert('请选择角色');
+                    return;
+                }
+                const roleValue = Number(rawRole);
+                if (Number.isNaN(roleValue)) {
+                    alert('角色值无效');
+                    return;
+                }
+
+                // 创建时密码必填
+                if (!this.user_editMode) {
+                    if (!this.user_form.password || !this.user_form.password.trim()) {
+                        alert('密码不能为空');
+                        return;
+                    }
+                }
+
+                // 规范 classeId / schoolId（如果为空则传 null）
+                const classeIdValue = (this.user_form.classeId === '' || this.user_form.classeId === null || this.user_form.classeId === undefined) ? null : Number(this.user_form.classeId);
+                const schoolIdValue = (this.user_form.schoolId === '' || this.user_form.schoolId === null || this.user_form.schoolId === undefined) ? null : Number(this.user_form.schoolId);
+
+                // schoolNumber 作为字符串传给后端
+                const schoolNumberValue = (this.user_form.schoolNumber || '').trim();
+
+                if (!this.user_editMode) {
+                    // create -> POST /manage/addUser
+                    const payload = {
+                        name: this.user_form.username.trim(), // 后端期望字段 name
+                        password: this.user_form.password,
+                        phone: this.user_form.phone || '',
+                        email: this.user_form.email || '',
+                        classeId: classeIdValue,
+                        schoolId: schoolIdValue,
+                        role: roleValue,
+                        schoolNumber: schoolNumberValue // 新增字段
+                    };
+
+                    const doPost = () => {
+                        if (window.ApiCore && typeof window.ApiCore.post === 'function') return window.ApiCore.post('/manage/addUser', payload);
+                        if (!window.axios || typeof window.axios.post !== 'function') return Promise.reject(new Error('no http client'));
+                        const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                        const url = (base ? base : '') + '/manage/addUser';
+                        return window.axios.post(url, payload, { headers: headers, withCredentials: true });
+                    };
+
+                    this.user_loading = true;
+                    doPost()
+                        .then(res => {
+                            console.info('addUser ok', res && res.data ? res.data : res);
+                            this.user_modalVisible = false;
+                            this.loadUsers(this.user_search, this.user_roleFilter);
+                        })
+                        .catch(err => {
+                            console.error('addUser failed', err);
+                            alert('新增用户失败');
+                        })
+                        .finally(() => { this.user_loading = false; });
+                } else {
+                    // update -> POST /manage/updateInfo
+                    const payload = {
+                        userId: this.user_form.userId,
+                        name: this.user_form.username.trim(),
+                        // 如果 password 为空则不传（后端保持原密码）
+                        password: (this.user_form.password && this.user_form.password.trim()) ? this.user_form.password : undefined,
+                        phone: this.user_form.phone || '',
+                        email: this.user_form.email || '',
+                        classeId: classeIdValue,
+                        schoolId: schoolIdValue,
+                        role: roleValue,
+                        schoolNumber: schoolNumberValue // 新增字段
+                    };
+                    // 移除 undefined 字段（避免发送 password: undefined）
+                    if (payload.password === undefined) delete payload.password;
+
+                    const doPost = () => {
+                        if (window.ApiCore && typeof window.ApiCore.post === 'function') return window.ApiCore.post('/manage/updateInfo', payload);
+                        if (!window.axios || typeof window.axios.post !== 'function') return Promise.reject(new Error('no http client'));
+                        const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                        const url = (base ? base : '') + '/manage/updateInfo';
+                        return window.axios.post(url, payload, { headers: headers, withCredentials: true });
+                    };
+
+                    this.user_loading = true;
+                    doPost()
+                        .then(res => {
+                            console.info('updateInfo ok', res && res.data ? res.data : res);
+                            this.user_modalVisible = false;
+                            this.loadUsers(this.user_search, this.user_roleFilter);
+                        })
+                        .catch(err => {
+                            console.error('updateInfo failed', err);
+                            alert('更新用户失败');
+                        })
+                        .finally(() => { this.user_loading = false; });
+                }
+            },
+
+// delete user -> /manage/removeUser (POST { userId })
+            deleteUser(item) {
+                if (!item) return;
+                if (!confirm('确定删除用户 "' + (item.username || '') + '" 吗？')) return;
+                const payload = { userId: item.userId };
+                const headers = this._getAuthHeaders();
+                const doPost = () => {
+                    if (window.ApiCore && typeof window.ApiCore.post === 'function') return window.ApiCore.post('/manage/removeUser', payload);
+                    if (!window.axios || typeof window.axios.post !== 'function') return Promise.reject(new Error('no http client'));
+                    const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                    const url = (base ? base : '') + '/manage/removeUser';
+                    return window.axios.post(url, payload, { headers: headers, withCredentials: true });
+                };
+                item._saving = true;
+                doPost().then(res => { console.info('removeUser ok', res && res.data ? res.data : res); this.user_items = this.user_items.filter(u => u.userId !== item.userId); })
+                    .catch(err => { console.error('removeUser failed', err); alert('删除失败'); })
+                    .finally(() => { item._saving = false; });
+            },
+
+            // ------------------------------------------------------------------
             // ===================== 学习对象（courseType） =========================
             // ------------------------------------------------------------------
             loadCourseTypes() {
@@ -1143,6 +1521,7 @@
                 </div>
               </div>
 
+<!-- 班级管理 -->
 <div v-else-if="activeTop === 'classes' && activeSub === 'singleClass'">
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
     <select v-model="cl_selectedSchoolId" @change="loadClasses(cl_selectedSchoolId, cl_searchStr, cl_gradeFilter)" style="padding:6px 10px;border:1px solid #e6eef8;border-radius:6px">
@@ -1185,6 +1564,159 @@
         </tbody>
       </table>
     </div>
+  </div>
+</div>
+
+              <!-- 插入到 template 中 users 子项的位置（替换原有或添加） -->
+<div v-else-if="activeTop === 'users' && activeSub === 'singleUser'">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+    <button @click="openCreateUserModal" style="background:#2b7cff;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer">创建单个用户</button>
+
+<select v-model="user_roleFilter" @change="onUserPageChange(1)" style="padding:6px 10px;border:1px solid #e6eef8;border-radius:6px">
+  <!-- Removed the '全部' option per request -->
+  <option value="3">超级管理员</option>
+  <option value="2">课程管理员</option>
+  <option value="1">教师</option>
+  <option value="0">学生</option>
+  <option value="4">二级管理员</option>
+</select>
+
+    <input v-model="user_search" @keyup.enter="loadUsers(user_search, user_roleFilter)" placeholder="用户名称或账号" style="padding:6px 10px;border:1px solid #e6eef8;border-radius:6px" />
+<button @click="onUserPageChange(1)" style="background:#2b7cff;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer">搜索</button>
+    <div style="color:#8894a6;font-size:13px;margin-left:auto">数据来自 /manage/getAllUser, /manage/addUser, /manage/removeUser, /manage/updateInfo</div>
+  </div>
+
+  <div v-if="user_loading" style="padding:24px;text-align:center;color:#666">加载中…</div>
+  <div v-else-if="user_error" style="padding:24px;color:#d9534f">{{ user_error }}</div>
+
+  <div v-else>
+    <div v-if="!user_items || user_items.length === 0" style="padding:28px;text-align:center;color:#9aa6b2"><div style="font-size:14px">No data</div></div>
+    <div v-else>
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:#fafafa;border-bottom:1px solid #eef2f7">
+            <th style="text-align:left;padding:12px 16px">账号/ID</th>
+            <th style="text-align:left;padding:12px 16px">用户名</th>
+            <th style="text-align:left;padding:12px 16px">邮箱</th>
+            <th style="text-align:left;padding:12px 16px">手机号</th>
+            <th style="text-align:left;padding:12px 16px">角色</th>
+            <th style="text-align:left;padding:12px 16px">班级id</th>
+            <th style="text-align:left;padding:12px 16px">学校id</th>
+            <th style="text-align:center;padding:12px 16px;width:160px">管理</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="u in user_items" :key="u.userId" style="border-bottom:1px solid #f2f6fa">
+            <td style="padding:12px 16px;color:#333">{{ u.userId }}</td>
+            <td style="padding:12px 16px;color:#333">{{ u.username }}</td>
+            <td style="padding:12px 16px;color:#333">{{ u.email }}</td>
+            <td style="padding:12px 16px;color:#333">{{ u.phone }}</td>
+            <td style="padding:12px 16px;color:#333">{{ u.role }}</td>
+            <td style="padding:12px 16px;color:#333">{{ u.classeId }}</td>
+            <td style="padding:12px 16px;color:#333">{{ u.schoolId }}</td>
+            <td style="text-align:center;padding:10px 12px">
+              <button @click="openEditUserModal(u)" :disabled="u._saving" style="background:#2b7cff;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;margin-right:8px">编辑</button>
+              <button @click="deleteUser(u)" :disabled="u._saving" style="background:#ff6b6b;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer">删除</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:12px">
+  <div style="display:flex;align-items:center;gap:6px;color:#666">
+    <button @click="onUserPageChange(user_current - 1)" :disabled="user_current <= 1" style="padding:6px 10px;border:1px solid #e6eef8;border-radius:6px;background:#fff;cursor:pointer">上一页</button>
+    <div>第 {{ user_current }} / {{ Math.max(1, Math.ceil(user_total / user_size)) }} 页</div>
+    <button @click="onUserPageChange(user_current + 1)" :disabled="user_current >= Math.ceil(user_total / user_size)" style="padding:6px 10px;border:1px solid #e6eef8;border-radius:6px;background:#fff;cursor:pointer">下一页</button>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:8px">
+    <div style="font-size:12px;color:#666">每页</div>
+    <select v-model.number="user_size" @change="onUserSizeChange(user_size)" style="padding:6px;border:1px solid #e6eef8;border-radius:6px">
+      <option :value="5">5</option>
+      <option :value="10">10</option>
+      <option :value="20">20</option>
+      <option :value="50">50</option>
+    </select>
+    <div style="font-size:12px;color:#8894a6">共 {{ user_total }} 条</div>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+
+<!-- 用户管理 -->
+<div v-if="user_modalVisible" style="position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:2000">
+  <div style="width:480px;background:#fff;border-radius:8px;padding:18px;box-shadow:0 8px 40px rgba(0,0,0,0.12);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-weight:600">{{ user_editMode ? '编辑用户' : '新增用户' }}</div>
+      <button @click="closeUserModal" style="background:transparent;border:none;font-size:18px;cursor:pointer">✕</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div>
+        <div style="font-size:12px;color:#666;margin-bottom:6px">用户名</div>
+        <input v-model="user_form.username" placeholder="请输入用户名" style="width:100%;padding:8px;border:1px solid #e6eef8;border-radius:6px" />
+      </div>
+      
+      <div>
+         <div style="font-size:12px;color:#666;margin-bottom:6px">工号/学号</div>
+         <input v-model="user_form.schoolNumber" placeholder="请输入工号或学号" style="width:100%;padding:8px;border:1px solid #e6eef8;border-radius:6px" />
+      </div>
+
+      <div v-if="!user_editMode">
+        <div style="font-size:12px;color:#666;margin-bottom:6px">密码</div>
+        <input v-model="user_form.password" type="password" placeholder="请输入密码(6-18位)" style="width:100%;padding:8px;border:1px solid #e6eef8;border-radius:6px" />
+      </div>
+
+      <div style="display:flex;gap:8px">
+        <div style="flex:1">
+          <div style="font-size:12px;color:#666;margin-bottom:6px">手机号</div>
+          <input v-model="user_form.phone" placeholder="请输入手机号" style="width:100%;padding:8px;border:1px solid #e6eef8;border-radius:6px" />
+        </div>
+        <div style="flex:1">
+          <div style="font-size:12px;color:#666;margin-bottom:6px">邮箱</div>
+          <input v-model="user_form.email" placeholder="请输入邮箱" style="width:100%;padding:8px;border:1px solid #e6eef8;border-radius:6px" />
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px">
+        <div style="flex:1">
+          <div style="font-size:12px;color:#666;margin-bottom:6px">班级 id</div>
+          <select v-model="user_form.classeId" style="width:100%;padding:8px;border:1px solid #e6eef8;border-radius:6px">
+            <option :value="null">请选择班级（可选）</option>
+            <option v-for="c in user_class_options" :key="c.id" :value="c.id">{{ c.name }}</option>
+          </select>
+        </div>
+<div style="flex:1">
+  <div style="font-size:12px;color:#666;margin-bottom:6px">学校 id</div>
+  <select
+    v-model="user_form.schoolId"
+    @change="loadClassesForUserModal(user_form.schoolId)"
+    style="width:100%;padding:8px;border:1px solid #e6eef8;border-radius:6px;background:#fff"
+  >
+    <option :value="null">请选择学校（可选）</option>
+    <option v-for="s in sch_items" :key="s.schoolId" :value="s.schoolId">{{ s.name }}</option>
+  </select>
+</div>
+      </div>
+
+      <div>
+        <div style="font-size:12px;color:#666;margin-bottom:6px">角色</div>
+        <select v-model="user_form.role" style="width:100%;padding:8px;border:1px solid #e6eef8;border-radius:6px">
+          <option value="">请选择角色</option>
+          <option value="0">学生</option>
+          <option value="1">教师</option>
+          <option value="2">课程管理员</option>
+          <option value="3">超级管理员</option>
+          <option value="4">二级管理员</option>
+        </select>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
+        <button @click="closeUserModal" style="background:#fff;border:1px solid #ccc;padding:6px 12px;border-radius:6px;cursor:pointer">取消</button>
+        <button @click="submitUserModal" :disabled="user_loading" style="background:#2b7cff;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer">确认</button>
+      </div>
+    </div>
+    
   </div>
 </div>
 
