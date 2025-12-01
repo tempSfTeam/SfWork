@@ -15,8 +15,10 @@ public enum IdentityEnum {
     // 课程管理员
     COURSE_MANAGER(2, "课程管理员"),
     // 运维(超级管理员)
-    OPERATIONS(3, "超级管理员");
+    OPERATIONS(3, "超级管理员"),
 
+    // 二级管理员
+    SECONDARY_ADMIN(4, "二级管理员");
     private final int userRole;
 
     @Getter

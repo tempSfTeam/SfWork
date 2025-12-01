@@ -13,6 +13,8 @@ import lombok.NoArgsConstructor;
 public class UserQueryDTO {
     private Long userId;
     private Integer role;
+    private Integer current;
+    private Integer size;
 
 
 }

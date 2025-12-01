@@ -84,9 +84,9 @@ public class ExceptionController {
     }
 
     @ExceptionHandler({NotLoginException.class})
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public Msg notLoginExceptionExceptionHandler(NotLoginException e) {
-        return Msg.fail(e.getMessage());
+        return Msg.notLogin(e.getMessage());
     }
 
     @ExceptionHandler({NotRoleException.class})

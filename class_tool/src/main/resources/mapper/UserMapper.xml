@@ -15,17 +15,20 @@
         <result property="role" column="role" jdbcType="INTEGER"/>
         <result property="classId" column="class_id" jdbcType="INTEGER"/>
         <result property="schoolId" column="school_id" jdbcType="INTEGER"/>
+        <result property="username" column="username" jdbcType="VARCHAR"/>
+        <result property="schoolNumber" column="school_number" jdbcType="VARCHAR"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        user_id,name,avatar,
+        user_id,name,username,school_number,avatar,
         password,create_time,phone,
         email,role,classId,schoolId
     </sql>
     <select id="getAllUserByRole" resultType="com.tempsfteam.class_tool.entity.User">
-        select user_id,name,avatar,
+        select user_id,name,username,avatar,school_number,
                phone,email,role,class_id,school_id
         from user
         where role = #{role}
     </select>
+
 </mapper>

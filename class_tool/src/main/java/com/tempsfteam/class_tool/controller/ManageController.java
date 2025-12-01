@@ -1,17 +1,21 @@
 package com.tempsfteam.class_tool.controller;
 
 import cn.dev33.satoken.annotation.SaCheckLogin;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.dev33.satoken.annotation.SaCheckRole;
+import cn.dev33.satoken.annotation.SaMode;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.tempsfteam.class_tool.bean.FileUploadFunction;
 import com.tempsfteam.class_tool.bean.Msg;
 import com.tempsfteam.class_tool.constant.ExcelTemplateConst;
+import com.tempsfteam.class_tool.constant.PermissionConst;
 import com.tempsfteam.class_tool.constant.StringConstant;
 import com.tempsfteam.class_tool.constant.role.Role;
 import com.tempsfteam.class_tool.dto.*;
 import com.tempsfteam.class_tool.entity.User;
 import com.tempsfteam.class_tool.entity.UserToCourse;
 import com.tempsfteam.class_tool.service.ManageService;
+import com.tempsfteam.class_tool.service.RoleToPermissionService;
 import com.tempsfteam.class_tool.service.UserService;
 import com.tempsfteam.class_tool.service.UserToCourseService;
 import com.tempsfteam.class_tool.util.DTOUtils;
@@ -33,6 +37,7 @@ import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -50,6 +55,9 @@ public class ManageController {
     @Resource
     private UserToCourseService userToCourseService;
 
+    @Resource
+    private RoleToPermissionService roleToPermissionService;
+
     /**
      * 添加用户
      * @param user 用户信息
@@ -57,7 +65,7 @@ public class ManageController {
      * @throws Exception 异常
      */
     @SaCheckLogin
-    @SaCheckRole(Role.OPERATIONS_STRING)
+    @SaCheckPermission(PermissionConst.USER_ADD)
     @PostMapping("/addUser")
     public Msg addUser(@Validated(TotalValidation.AddUser.class) @RequestBody UserAddDTO user) throws Exception {
         return userService.addUser(user);
@@ -70,7 +78,7 @@ public class ManageController {
      * @throws Exception 异常
      */
     @SaCheckLogin
-    @SaCheckRole(Role.OPERATIONS_STRING)
+    @SaCheckPermission(value = {PermissionConst.USER_ADD_BY_FILE, PermissionConst.SCHOOL_ADD_BY_FILE, PermissionConst.CLASSE_ADD_BY_FILE}, mode = SaMode.OR)
     @GetMapping("/getTemplate")
     public ResponseEntity<?> getTemplate(@RequestParam String templateType) throws Exception {
         String filePath;
@@ -159,10 +167,10 @@ public class ManageController {
     @SaCheckLogin
     @SaCheckRole(Role.OPERATIONS_STRING)
     @GetMapping("/getAllUser")
-    public Msg getAllUser(@RequestParam Integer role) throws Exception {
+    public Msg getAllUser(UserQueryDTO userQueryDTO) throws Exception {
         // 如果role不为空,则根据role查询
-        if (role != null) {
-            return userService.getAllUserByRole(role);
+        if (userQueryDTO.getRole() != null) {
+            return userService.getAllUserByRole(userQueryDTO);
         }
         return Msg.notLegal("用户类型参数缺失");
     }
@@ -232,7 +240,7 @@ public class ManageController {
      * @throws Exception
      */
     @SaCheckLogin
-    @SaCheckRole(Role.OPERATIONS_STRING)
+    @SaCheckPermission(PermissionConst.USER_ADD_BY_FILE)
     @PostMapping("/insertUserByFile")
     public Msg insertUserByFile(@RequestParam("multipartFile") MultipartFile multipartFile) throws Exception {
         // 上传文件路径
@@ -247,7 +255,7 @@ public class ManageController {
      * @throws Exception
      */
     @SaCheckLogin
-    @SaCheckRole(Role.OPERATIONS_STRING)
+    @SaCheckPermission(PermissionConst.SCHOOL_ADD_BY_FILE)
     @PostMapping("/insertSchoolByFile")
     public Msg insertSchoolByFile(@RequestParam("multipartFile") MultipartFile multipartFile) throws Exception {
         String filePath = StringConstant.UPLOAD_SCHOOL_EXCEL_FOLDER;
@@ -261,7 +269,7 @@ public class ManageController {
      * @throws Exception
      */
     @SaCheckLogin
-    @SaCheckRole(Role.OPERATIONS_STRING)
+    @SaCheckPermission(PermissionConst.CLASSE_ADD_BY_FILE)
     @PostMapping("/insertClassByFile")
     public Msg insertClassByFile(@RequestParam("multipartFile") MultipartFile multipartFile) throws Exception {
         String filePath = StringConstant.UPLOAD_CLASS_EXCEL_FOLDER;
@@ -275,7 +283,7 @@ public class ManageController {
      * @return
      */
     @SaCheckLogin
-    @SaCheckRole(Role.OPERATIONS_STRING)
+    @SaCheckPermission(PermissionConst.USER_ADD_BY_FILE)
     @PostMapping("/insertUserByFileConfirm")
     public Msg insertUserByFileConfirm(@RequestBody Map<String,String> map) throws Exception {
         return manageService.insertUserByFileConfirm(map.get("fileName"));
@@ -288,7 +296,7 @@ public class ManageController {
      * @throws Exception
      */
     @SaCheckLogin
-    @SaCheckRole(Role.OPERATIONS_STRING)
+    @SaCheckPermission(PermissionConst.SCHOOL_ADD_BY_FILE)
     @PostMapping("/insertSchoolByFileConfirm")
     public Msg insertSchoolByFileConfirm(@RequestBody Map<String,String> map) throws Exception {
         return manageService.insertSchoolByFileConfirm(map.get("fileName"));
@@ -301,7 +309,7 @@ public class ManageController {
      * @throws Exception
      */
     @SaCheckLogin
-    @SaCheckRole(Role.OPERATIONS_STRING)
+    @SaCheckPermission(PermissionConst.CLASSE_ADD_BY_FILE)
     @PostMapping("/insertClassByFileConfirm")
     public Msg insertClassByFileConfirm(@RequestBody Map<String,String> map) throws Exception {
         return manageService.insertClassByFileConfirm(map.get("fileName"));
@@ -309,7 +317,7 @@ public class ManageController {
 
     // 获取对应需要批量导入而上传完的excel文件
     @SaCheckLogin
-    @SaCheckRole(Role.OPERATIONS_STRING)
+    @SaCheckPermission(value = {PermissionConst.USER_ADD_BY_FILE, PermissionConst.SCHOOL_ADD_BY_FILE, PermissionConst.CLASSE_ADD_BY_FILE}, mode = SaMode.OR)
     @GetMapping("/getExcelFile")
     public ResponseEntity<?> getExcelFile(@RequestParam String fileName, @RequestParam String fileType) {
         String folderPath;
@@ -355,6 +363,7 @@ public class ManageController {
         }
     }
 
+
     // 通用文件上传处理方法
     private Msg handleFileUpload(String filePath,MultipartFile multipartFile, FileUploadFunction<String, Msg> fileProcessor) throws Exception {
         // 如果文件夹不存在，则创建
@@ -389,6 +398,33 @@ public class ManageController {
     @PostMapping("/insertClassToCourse")
     public Msg insertClassToCourse(@Validated(TotalValidation.insertClassToCourse.class) @RequestBody ClasseToCourseDTO classeToCourseDTO) throws Exception {
         return manageService.insertClassToCourse(classeToCourseDTO);
+    }
+
+    /**
+     * 获取角色权限列表,用于超管修改角色权限展示当前所拥有的权限
+     * @return
+     * @throws Exception
+     */
+    @SaCheckLogin
+    @SaCheckRole(Role.OPERATIONS_STRING)
+    @GetMapping("/listRoleToPermission")
+    public Msg listRoleToPermission() throws Exception {
+        return roleToPermissionService.listRoleToPermission(PermissionConst.MODULE);
+    }
+
+    /**
+     * 更新角色权限
+     * @param updatedPermissions
+     * @return
+     * @throws Exception
+     */
+    @SaCheckLogin
+    @SaCheckRole(Role.OPERATIONS_STRING)
+    @PostMapping("/updateRoleToPermission")
+    public Msg updateRoleToPermission(@RequestBody List<Map<String, Object>> updatedPermissions) throws Exception {
+        // 处理权限数据的业务逻辑
+        // updatedPermissions 是一个 List，每个元素是一个包含 permissionId 和 roleIds 的 Map
+        return roleToPermissionService.updateRoleToPermission(updatedPermissions);
     }
 
 

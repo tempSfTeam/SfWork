@@ -5,31 +5,57 @@
 <mapper namespace="com.tempsfteam.class_tool.mapper.RoleToPermissionMapper">
 
     <resultMap id="BaseResultMap" type="com.tempsfteam.class_tool.entity.RoleToPermission">
-            <id property="mappingId" column="mapping_id" jdbcType="INTEGER"/>
-            <result property="roleId" column="role_id" jdbcType="INTEGER"/>
-            <result property="permissionId" column="permission_id" jdbcType="INTEGER"/>
+        <id property="mappingId" column="mapping_id" jdbcType="INTEGER"/>
+        <result property="roleId" column="role_id" jdbcType="INTEGER"/>
+        <result property="permissionId" column="permission_id" jdbcType="INTEGER"/>
     </resultMap>
 
     <sql id="Base_Column_List">
         mapping_id,role_id,permission_id
     </sql>
+
+    <delete id="deleteRoleToPermissions">
+        DELETE FROM role_to_permission
+        WHERE permission_id = #{permissionId}
+        AND role_id IN
+        <foreach collection="roleIds" item="roleId" open="(" close=")" separator=",">
+            #{roleId}
+        </foreach>
+    </delete>
+
+    <insert id="insertRoleToPermissions">
+        INSERT INTO role_to_permission (permission_id, role_id) VALUES
+        <foreach collection="roleIds" item="roleId" separator="," open="(" close=")">
+            #{permissionId}, #{roleId}
+        </foreach>
+    </insert>
+
+
     <select id="getRoleToPermissionList" resultType="java.util.Map">
         SELECT r.role_id, p.description
         FROM role r
-        JOIN role_to_permission rp ON r.role_id = rp.role_id
-        JOIN permission p ON rp.permission_id = p.permission_id
+                 JOIN role_to_permission rp ON r.role_id = rp.role_id
+                 JOIN permission p ON rp.permission_id = p.permission_id
     </select>
 
-    <select id="getRoleToPermissionListByModule" resultType="map" parameterType="map">
-        SELECT p.module, p.description
+    <select id="getRoleToPermissionListByModule" resultType="com.tempsfteam.class_tool.entity.PermissionInfo" parameterType="map">
+        SELECT r.role_id AS roleId,p.permission_id, p.module, p.desCN, p.description
         FROM permission p
         JOIN role_to_permission rp ON p.permission_id = rp.permission_id
         JOIN role r ON rp.role_id = r.role_id
-        WHERE r.role_id = #{roleId}
+        WHERE r.role_id IN
+        <foreach item="roleId" collection="roleIds" open="(" separator="," close=")">
+            #{roleId}
+        </foreach>
         AND p.module IN
         <foreach item="module" collection="list" open="(" separator="," close=")">
             #{module}
         </foreach>
+    </select>
+    <select id="getRoleIdsByPermissionId" resultType="java.lang.Integer">
+        SELECT role_id
+        FROM role_to_permission
+        WHERE permission_id = #{permissionId}
     </select>
 
 </mapper>

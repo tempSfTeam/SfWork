@@ -2,10 +2,7 @@ package com.tempsfteam.class_tool.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.tempsfteam.class_tool.bean.Msg;
-import com.tempsfteam.class_tool.dto.LoginDTO;
-import com.tempsfteam.class_tool.dto.UpdatePassDTO;
-import com.tempsfteam.class_tool.dto.UpdateUserDTO;
-import com.tempsfteam.class_tool.dto.UserAddDTO;
+import com.tempsfteam.class_tool.dto.*;
 import com.tempsfteam.class_tool.entity.User;
 
 import java.io.IOException;
@@ -40,11 +37,11 @@ public interface UserService extends IService<User> {
 
     /**
      * 获取用户信息
-     * @param role
+     * @param userQueryDTO 用户查询条件
      * @return
      * @throws Exception
      */
-    Msg getAllUserByRole(Integer role) throws Exception;
+    Msg getAllUserByRole(UserQueryDTO userQueryDTO) throws Exception;
 
     Msg addUser(UserAddDTO user) throws Exception;
 

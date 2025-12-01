@@ -57,6 +57,8 @@ public class StpInterfaceImpl implements StpInterface {
             list.add("OPERATIONS");
         } else if (userRole.equals(Role.STUDENT)) {
             list.add("STUDENT");
+        } else if (userRole.equals(Role.SECONDARY_ADMIN)) {
+            list.add("SECONDARY_ADMIN");
         }
         return list;
     }

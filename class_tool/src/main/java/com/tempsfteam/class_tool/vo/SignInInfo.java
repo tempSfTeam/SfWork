@@ -27,6 +27,9 @@ public class SignInInfo {
      * 用户身份
      */
     private String userRole;
+    /**
+     * 用户权限列表
+     */
     private Map<String, List<String>> permissionList;
 
     public void setUserRole(Integer userRole) {

@@ -5,11 +5,13 @@
 <mapper namespace="com.tempsfteam.class_tool.mapper.PermissionMapper">
 
     <resultMap id="BaseResultMap" type="com.tempsfteam.class_tool.entity.Permission">
-            <id property="permissionId" column="permission_id" jdbcType="INTEGER"/>
-            <result property="description" column="description" jdbcType="VARCHAR"/>
+        <id property="permissionId" column="permission_id" jdbcType="INTEGER"/>
+        <result property="description" column="description" jdbcType="VARCHAR"/>
+        <result property="desCN" column="desCN" jdbcType="VARCHAR"/>
+        <result property="module" column="module" jdbcType="VARCHAR"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        permission_id,description
+        permission_id,description,desCN,module
     </sql>
 </mapper>

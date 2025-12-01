@@ -70,5 +70,11 @@ public class PermissionConst {
     // 课程管理员权限
     public static final String COURSE_COURSE_MANAGER_QUERY = "course.courseManagerQuery";
 
+    // 批量添加学生/班级/学校的权限
+    public static final String USER_ADD_BY_FILE = "user.addByFile";
+    public static final String CLASSE_ADD_BY_FILE = "classe.addByFile";
+    public static final String SCHOOL_ADD_BY_FILE = "school.addByFile";
+
+
 }
 

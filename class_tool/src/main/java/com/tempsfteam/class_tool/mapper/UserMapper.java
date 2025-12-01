@@ -1,8 +1,10 @@
 package com.tempsfteam.class_tool.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tempsfteam.class_tool.entity.User;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -15,9 +17,10 @@ import java.util.List;
  */
 @Mapper
 public interface UserMapper extends BaseMapper<User> {
-    List<User> getAllUserByRole(Integer role);
+    Page<User> getAllUserByRole(Page<User> page, @Param("role") Integer role);
 
 }
+
 
 
 

@@ -11,23 +11,32 @@ import lombok.Data;
 import java.io.Serializable;
 
 /**
-* 权限表
-* @TableName permission
-*/
+ * 权限表
+ * @TableName permission
+ */
 @TableName(value ="permission")
 @Data
 @AllArgsConstructor
 public class Permission implements Serializable {
 
     /**
-    * 自增id
-    */
+     * 自增id
+     */
     @TableId(type = IdType.AUTO)
     private Integer permissionId;
     /**
-    * 权限描述
-    */
+     * 权限描述
+     */
     private String description;
+    /**
+     * 权限对应模块
+     */
+    private String module;
+    /**
+     * 权限对应中文介绍
+     */
+    @TableField("desCN")
+    private String desCN;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;

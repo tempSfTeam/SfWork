@@ -4,6 +4,7 @@ package com.tempsfteam.class_tool.service.impl;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tempsfteam.class_tool.bean.Msg;
 import com.tempsfteam.class_tool.bean.UserData;
@@ -11,10 +12,8 @@ import com.tempsfteam.class_tool.constant.PermissionConst;
 import com.tempsfteam.class_tool.constant.RedisConst;
 import com.tempsfteam.class_tool.constant.SecretConst;
 import com.tempsfteam.class_tool.constant.UserConst;
-import com.tempsfteam.class_tool.dto.LoginDTO;
-import com.tempsfteam.class_tool.dto.UpdatePassDTO;
-import com.tempsfteam.class_tool.dto.UpdateUserDTO;
-import com.tempsfteam.class_tool.dto.UserAddDTO;
+import com.tempsfteam.class_tool.dto.*;
+import com.tempsfteam.class_tool.entity.PermissionInfo;
 import com.tempsfteam.class_tool.entity.User;
 import com.tempsfteam.class_tool.mapper.RoleToPermissionMapper;
 import com.tempsfteam.class_tool.mapper.UserMapper;
@@ -27,6 +26,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -99,15 +99,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         // 设置用户身份
         signInInfo.setUserRole(role);
         // 获取用户权限
-        List<Map<String, String>> roleToPermissionList = roleToPermissionMapper.getRoleToPermissionListByModule(role, PermissionConst.MODULE);
+        List<PermissionInfo> roleToPermissionList = roleToPermissionMapper.getRoleToPermissionListByModule(Arrays.asList(role), PermissionConst.MODULE);
         // 将权限按照 module 分组
         Map<String, List<String>> permissionList = roleToPermissionList.stream()
                 .collect(Collectors.groupingBy(
                         // 以 module 作为 key
-                        row -> row.get("module"),
+                        PermissionInfo::getModule,
                         Collectors.mapping(
                                 // 提取 description
-                                row -> row.get("description"),
+                                PermissionInfo::getDescription,
                                 // 将 description 聚合到 List 中
                                 Collectors.toList()
                         )
@@ -149,13 +149,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     }
 
     @Override
-    public Msg getAllUserByRole(Integer role) throws Exception {
+    public Msg getAllUserByRole(UserQueryDTO userQueryDTO) throws Exception {
         // 查询用户
-        List<User> userList = userMapper.getAllUserByRole(role);
-        // 判断用户是否存在
-        if (userList.isEmpty()) {
-            return Msg.notLegal("用户不存在");
-        }
+        Page<User> userList = userMapper.getAllUserByRole(new Page<User>(userQueryDTO.getCurrent(), userQueryDTO.getSize()), userQueryDTO.getRole());
         return Msg.success("查询成功", userList);
     }
 

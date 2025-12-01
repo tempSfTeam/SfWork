@@ -81,6 +81,9 @@ public class Msg {
         return new Msg().setCode(MsgCode.CONFLICT.getCode()).setMessage(message);
     }
 
+    public static Msg notLogin(String message){
+        return new Msg().setCode(MsgCode.NOT_LOGIN.getCode()).setMessage(message);
+    }
     public static Msg notPermitted(String message){
         return new Msg().setCode(MsgCode.FORBIDDEN.getCode()).setMessage(message);
     }

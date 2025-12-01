@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class UserVO {
     private String name;
+    private String username;
     private String avatar;
     private String phone;
     private String email;
@@ -26,6 +27,7 @@ public class UserVO {
     public static UserVO convertToUserVO(User user) {
         return new UserVO(
                 user.getName(),
+                user.getUsername(),
                 user.getAvatar(),
                 user.getPhone(),
                 user.getEmail(),

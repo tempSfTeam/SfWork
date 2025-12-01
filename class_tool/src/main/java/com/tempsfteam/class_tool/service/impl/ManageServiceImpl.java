@@ -37,10 +37,10 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
-* @author ADACHI
-* @description 针对表【user】的数据库操作Service实现
-* @createDate 2024-07-16 10:38:59
-*/
+ * @author ADACHI
+ * @description 针对表【user】的数据库操作Service实现
+ * @createDate 2024-07-16 10:38:59
+ */
 @Service
 public class ManageServiceImpl implements ManageService {
 
@@ -125,35 +125,40 @@ public class ManageServiceImpl implements ManageService {
 
     @Override
     public Msg insertUserByFile(String fileName) throws Exception {
-        return insertDataByFile(fileName, new String[]{"用户名", "初始密码", "用户类型", "班级编号", "学校编号"}, row -> {
+        return insertDataByFile(fileName, new String[]{"用户名", "学号","用户类型", "班级编号", "学校编号"}, row -> {
             // 创建一个数据格式化对象
             DataFormatter dataFormatter = new DataFormatter();
             User user = new User();
             // 分别获取每一行的单元格
             Cell name = row.getCell(0);
-            Cell password = row.getCell(1);
+            Cell schoolNumber = row.getCell(1);
             Cell role = row.getCell(2);
             Cell classId = row.getCell(3);
             Cell schoolId = row.getCell(4);
             // 跳过空行
-            if (name == null || password == null || role == null || classId == null || schoolId == null) {
+            if (name == null || schoolNumber == null || role == null || classId == null || schoolId == null) {
                 return null;
             }
 
             // 格式化单元格的值
             String nameStr = dataFormatter.formatCellValue(name);
-            String passwordStr = dataFormatter.formatCellValue(password);
+            String schoolNumberStr = dataFormatter.formatCellValue(schoolNumber);
             String roleStr = dataFormatter.formatCellValue(role);
             String classIdStr = dataFormatter.formatCellValue(classId);
             String schoolIdStr = dataFormatter.formatCellValue(schoolId);
 
-            if (StringUtil.isBlank(nameStr) || StringUtil.isBlank(passwordStr) || StringUtil.isBlank(roleStr)
+            if (StringUtil.isBlank(nameStr) || StringUtil.isBlank(schoolNumberStr) || StringUtil.isBlank(roleStr)
                     || StringUtil.isBlank(classIdStr) || StringUtil.isBlank(schoolIdStr)) {
                 return null; // 跳过空值
             }
             // 设置用户的属性
-            user.setName(nameStr);
-            user.setPassword(passwordStr);
+            // 用户名(账号)设置为000+学校编号+学号
+            user.setName("000" + schoolIdStr + schoolNumberStr);
+            // 用户昵称设置为Excel表中的用户名
+            user.setUsername(nameStr);
+            user.setSchoolNumber(schoolNumberStr);
+            // 密码设置为姓名首字母拼音+学号后六位
+            user.setPassword(getPassword(nameStr, schoolNumberStr));
             user.setRole(Integer.valueOf(roleStr));
             user.setAvatar(UserConst.DEFAULT_AVATAR_PATH);
             user.setSchoolId(Integer.valueOf(schoolIdStr));
@@ -161,6 +166,39 @@ public class ManageServiceImpl implements ManageService {
 
             return user;
         });
+    }
+
+    /**
+     * 生成密码，规则为姓名首字母拼音+学号后六位
+     * @param username
+     * @param schoolNumber
+     * @return
+     */
+    //TODO 优化多音字姓氏问题
+    public String getPassword(String username, String schoolNumber) {
+        String nameFirstChar;
+        if (username.length() <= 3) {
+            System.out.println(username);
+            if ("孙烿栶".equals(username)) {
+                nameFirstChar = "Sry";
+            } else if ("余熖辉".equals(username)) {
+                nameFirstChar = "Yyh";
+                // 常见多音字姓氏
+            } else if ("曾".equals(username.substring(0, 1))) {
+                nameFirstChar = "Z" + StringUtil.getFirstSpell(username.replace("·", "")).substring(1);
+            } else if ("区".equals(username.substring(0, 1))) {
+                nameFirstChar = "O" + StringUtil.getFirstSpell(username.replace("·", "")).substring(1);
+            } else if ("单".equals(username.substring(0, 1))) {
+                nameFirstChar = "S" + StringUtil.getFirstSpell(username.replace("·", "")).substring(1);
+            } else if ("解".equals(username.substring(0, 1))) {
+                nameFirstChar = "X" + StringUtil.getFirstSpell(username.replace("·", "")).substring(1);
+            } else {
+                nameFirstChar = StringUtil.getFirstSpell(username.replace("·", ""));
+            }
+        } else {
+            nameFirstChar = StringUtil.getFirstSpell(username.replace("·", "").substring(0, 3));
+        }
+        return nameFirstChar + schoolNumber.substring(schoolNumber.length() - 6);
     }
 
     @Override
@@ -292,10 +330,11 @@ public class ManageServiceImpl implements ManageService {
                 elementsToRemove.add(user);
                 // 添加到失败列表
                 failUser.add(user);
+                // TODO: 对于添加失败的提示, 可以考虑加入更加清晰的日志提示
                 System.out.println("不要插入重复的用户: " + user.getName());
             } else {
                 // 对密码进行加密
-                user.setPassword(MD5Util.encodeByMd5(user.getPassword()));
+                user.setPassword(MD5Util.encodeByMd5WithSalt(user.getPassword(),SecretConst.LOGIN_SALT));
             }
         }
         // 批量移除需要移除的元素
