@@ -169,11 +169,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         }
         User realUser = new User();
         realUser.setName(user.getName());
+        realUser.setUsername(user.getName());
         // 通过SaToken进行密码加盐加密
         realUser.setPassword(MD5Util.encodeByMd5WithSalt(user.getPassword(), SecretConst.LOGIN_SALT));
         realUser.setRole(user.getRole());
         realUser.setPhone(user.getPhone());
         realUser.setEmail(user.getEmail());
+        realUser.setSchoolNumber(user.getSchoolNumber());
         // 设置默认头像
         realUser.setAvatar(UserConst.DEFAULT_AVATAR_PATH);
         // 如果有学校id则设置学校id，否则设置默认学校id

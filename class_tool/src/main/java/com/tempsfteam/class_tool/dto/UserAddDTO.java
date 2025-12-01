@@ -31,4 +31,5 @@ public class UserAddDTO {
     private Integer role;
     private Integer schoolId;
     private Integer classId;
+    private String schoolNumber;
 }
