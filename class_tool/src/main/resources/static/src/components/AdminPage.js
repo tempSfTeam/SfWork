@@ -34,6 +34,21 @@
                 sch_items: [], // { schoolId, name, _raw, _saving }
                 sch_search: '',
 
+                // 添加到 data() 返回对象中（与 sch_* 在一起）
+                cl_loading: false,
+                cl_error: null,
+                cl_items: [],              // 列表数据
+                cl_selectedSchoolId: null, // 下拉选中的学校 id
+                cl_searchStr: '',          // 搜索班级名
+                cl_gradeFilter: '',        // 年级筛选
+                cl_modalVisible: false,    // 创建班级 modal 是否可见
+                cl_form: {                 // modal 表单
+                    schoolId: null,
+                    name: '',
+                    grade: ''
+                },
+                cl_autoFilterDebounce: null,
+
                 // --- 学习对象管理（courseType）
                 ct_loading: false,
                 ct_error: null,
@@ -77,18 +92,74 @@
             },
             activeSub(newVal) {
                 if (this.activeTop === 'school' && newVal === 'singleSchool') this.loadSchools(this.sch_search);
+            },
+            cl_selectedSchoolId(newVal, oldVal) {
+                if (newVal && newVal !== oldVal) {
+                    this.loadClasses(newVal, this.cl_searchStr, this.cl_gradeFilter);
+                }
+            },
+            cl_searchStr(newVal) {
+                if (this.cl_autoFilterDebounce) clearTimeout(this.cl_autoFilterDebounce);
+                this.cl_autoFilterDebounce = setTimeout(() => {
+                    if (this.cl_selectedSchoolId) this.loadClasses(this.cl_selectedSchoolId, this.cl_searchStr, this.cl_gradeFilter);
+                }, 350);
+            },
+            cl_gradeFilter(newVal) {
+                if (this.cl_autoFilterDebounce) clearTimeout(this.cl_autoFilterDebounce);
+                this.cl_autoFilterDebounce = setTimeout(() => {
+                    if (this.cl_selectedSchoolId) this.loadClasses(this.cl_selectedSchoolId, this.cl_searchStr, this.cl_gradeFilter);
+                }, 350);
             }
         },
         methods: {
             // 左侧菜单行为
+            // 替换原来的 toggleGroup 与 chooseSub
             toggleGroup(key) {
-                const group = this.menu.find(m => m.key === key); if (!group) return;
-                if (!group.subs || group.subs.length === 0) { this.activeTop = key; this.activeSub = ''; Object.keys(this.collapsed).forEach(k => { if (k !== key) this.collapsed[k] = false; }); return; }
-                this.collapsed[key] = !this.collapsed[key];
-                if (this.collapsed[key]) this.activeTop = key;
+                const group = this.menu.find(m => m.key === key);
+                if (!group) return;
+
+                if (!group.subs || group.subs.length === 0) {
+                    this.activeTop = key;
+                    this.activeSub = '';
+                    Object.keys(this.collapsed).forEach(k => { if (k !== key) this.collapsed[k] = false; });
+                    return;
+                }
+
+                const willOpen = !this.collapsed[key];
+                this.collapsed[key] = willOpen;
+
+                if (willOpen) {
+                    this.activeTop = key;
+                    const firstSub = group.subs[0];
+                    if (firstSub && firstSub.key) {
+                        this.activeSub = firstSub.key;
+                        if (key === 'classes' && this.activeSub === 'singleClass') this.ensureSchoolsAndLoadClasses();
+                        if (key === '学习对象管理') this.loadCourseTypes();
+                        if (key === '课程科目管理') this.ensureCourseTypesAndLoadProfessions();
+                        if (key === '角色权限管理') this.loadRolePermissions();
+                    }
+                } else {
+                    this.activeSub = '';
+                }
+
                 Object.keys(this.collapsed).forEach(k => { if (k !== key) this.collapsed[k] = false; });
             },
-            chooseSub(topKey, subKey) { this.activeTop = topKey; this.activeSub = subKey; if (this.collapsed[topKey] === false) this.collapsed[topKey] = true; },
+
+            chooseSub(topKey, subKey) {
+                this.activeTop = topKey;
+                this.activeSub = subKey;
+                if (this.collapsed[topKey] === false) this.collapsed[topKey] = true;
+
+                if (topKey === 'classes' && subKey === 'singleClass') {
+                    this.ensureSchoolsAndLoadClasses();
+                } else if (topKey === '学习对象管理') {
+                    this.loadCourseTypes();
+                } else if (topKey === '课程科目管理') {
+                    this.ensureCourseTypesAndLoadProfessions();
+                } else if (topKey === '角色权限管理') {
+                    this.loadRolePermissions();
+                }
+            },
             contentTitle() { const top = this.menu.find(m => m.key === this.activeTop); if (!top) return ''; if (this.activeSub) { const s = (top.subs||[]).find(x=>x.key===this.activeSub); return s ? (top.title + ' - ' + s.title) : top.title; } return top.title; },
 
             // Helper: get headers with token if axios fallback is used
@@ -300,6 +371,246 @@
                     })
                     .catch(err => {
                         console.error('deleteSchool failed', err);
+                        alert('删除失败');
+                    })
+                    .finally(() => { item._saving = false; });
+            },
+
+            // ------------------------------------------------------------------
+            // ===================== 班级（classe） =========================
+            // ------------------------------------------------------------------
+            // 新增班级相关方法（确保这些方法只在文件中出现一次）
+
+// 确保学校已加载后使用首个学校加载班级
+            ensureSchoolsAndLoadClasses() {
+                const already = (this.sch_items && this.sch_items.length);
+                // loadSchools 返回 Promise（如你实现），因此用 then
+                this.loadSchools().then(() => {
+                    if (!this.cl_selectedSchoolId && this.sch_items && this.sch_items.length) {
+                        this.cl_selectedSchoolId = this.sch_items[0].schoolId;
+                    }
+                    if (this.cl_selectedSchoolId) this.loadClasses(this.cl_selectedSchoolId, this.cl_searchStr, this.cl_gradeFilter);
+                }).catch(() => {
+                    if (this.cl_selectedSchoolId) this.loadClasses(this.cl_selectedSchoolId, this.cl_searchStr, this.cl_gradeFilter);
+                });
+
+                if (already && !this.cl_selectedSchoolId && this.sch_items.length) {
+                    this.cl_selectedSchoolId = this.sch_items[0].schoolId;
+                    this.loadClasses(this.cl_selectedSchoolId, this.cl_searchStr, this.cl_gradeFilter);
+                }
+            },
+
+// 加载班级（GET /classe/listAllBySchoolId）
+            loadClasses(schoolId, searchStr, grade) {
+                if (!schoolId) { this.cl_items = []; return; }
+                this.cl_loading = true;
+                this.cl_error = null;
+                this.cl_items = [];
+
+                const headers = this._getAuthHeaders();
+                const params = { current: 1, size: -1, searchStr: searchStr || '', schoolId: schoolId, grade: grade || '' };
+
+                const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                const url = (base ? base : '') + '/classe/listAllBySchoolId';
+
+                const handleFail = (err) => {
+                    console.error('loadClasses error', err);
+                    this.cl_error = '获取班级失败';
+                    this.cl_loading = false;
+                };
+
+                if (window.ApiCore && typeof window.ApiCore.get === 'function') {
+                    return window.ApiCore.get(url + '?current=1&size=-1&searchStr=' + encodeURIComponent(params.searchStr) + '&schoolId=' + encodeURIComponent(params.schoolId) + (params.grade ? ('&grade=' + encodeURIComponent(params.grade)) : ''))
+                        .then(resp => {
+                            const data = resp && resp.data !== undefined ? resp.data : (resp || null);
+                            this._handleClassesResponse(data);
+                        })
+                        .catch(err => {
+                            console.warn('ApiCore.get /classe/listAllBySchoolId failed, fallback to axios', err);
+                            return this._fetchClassesWithAxios(params, headers).catch(handleFail);
+                        })
+                        .finally(() => { this.cl_loading = false; });
+                } else {
+                    return this._fetchClassesWithAxios(params, headers).then(()=>{ this.cl_loading=false; }).catch(handleFail);
+                }
+            },
+
+            _fetchClassesWithAxios(params, headers) {
+                if (!window.axios || typeof window.axios.get !== 'function') {
+                    this.cl_error = 'No HTTP client available';
+                    this.cl_loading = false;
+                    return Promise.reject(new Error('no http client'));
+                }
+                const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                const url = (base ? base : '') + '/classe/listAllBySchoolId';
+                return window.axios.get(url, { params: params, headers: headers, withCredentials: true })
+                    .then(res => {
+                        try { console.debug('/classe/listAllBySchoolId response', res); } catch (e) {}
+                        const data = res && res.data !== undefined ? res.data : (res || null);
+                        this._handleClassesResponse(data);
+                    })
+                    .catch(err => { this.cl_error = '请求失败'; console.error(err); });
+            },
+
+            _handleClassesResponse(payload) {
+                try { console.debug('handleClassesResponse payload:', payload); } catch (e) {}
+
+                if (!payload) { this.cl_error = '无返回数据'; this.cl_items = []; return; }
+                if (payload.code !== undefined && payload.code !== null && payload.code !== 200 && payload.code !== 0) {
+                    this.cl_error = payload.message || payload.msg || ('错误代码 ' + payload.code);
+                    this.cl_items = []; return;
+                }
+
+                let candidate = payload;
+                if (payload.data !== undefined && payload.data !== null) candidate = payload.data;
+
+                // 支持 data.list / data.records / rows / list / data 等常见容器
+                const findFirstArray = (obj) => {
+                    if (!obj) return null;
+                    if (Array.isArray(obj)) return obj;
+                    if (Array.isArray(obj.list)) return obj.list;
+                    if (Array.isArray(obj.rows)) return obj.rows;
+                    if (Array.isArray(obj.records)) return obj.records;
+                    if (Array.isArray(obj.data)) return obj.data;
+                    if (obj.page && Array.isArray(obj.page.records)) return obj.page.records;
+                    if (obj.page && Array.isArray(obj.page.list)) return obj.page.list;
+                    for (const k of Object.keys(obj)) { if (Array.isArray(obj[k])) return obj[k]; }
+                    return null;
+                };
+
+                const arr = findFirstArray(candidate) || [];
+                const finalArr = Array.isArray(candidate) ? candidate : arr;
+
+                if (!finalArr || finalArr.length === 0) {
+                    this.cl_items = [];
+                    try { console.warn('No array of classes found in payload. Payload keys:', Object.keys(payload)); } catch (e) {}
+                    return;
+                }
+
+                this.cl_items = finalArr.map(c => ({
+                    classeId: c.classeId !== undefined ? c.classeId : (c.id !== undefined ? c.id : null),
+                    name: c.name || c.classeName || '',
+                    schoolId: c.schoolId !== undefined ? c.schoolId : (c.school_id !== undefined ? c.school_id : null),
+                    grade: c.grade || c.gradeName || '',
+                    _raw: c,
+                    _saving: false
+                }));
+
+                try { console.debug('cl_items set:', this.cl_items); } catch (e) {}
+            },
+
+// 打开创建 modal（下拉从 sch_items 填充）
+            openCreateClassModal() {
+                this.loadSchools().then(() => {
+                    if (!this.cl_form.schoolId && this.sch_items && this.sch_items.length) this.cl_form.schoolId = this.sch_items[0].schoolId;
+                    this.cl_form.name = '';
+                    this.cl_form.grade = this.cl_gradeFilter || '';
+                    this.cl_modalVisible = true;
+                }).catch(() => {
+                    if (!this.cl_form.schoolId && this.sch_items && this.sch_items.length) this.cl_form.schoolId = this.sch_items[0].schoolId;
+                    this.cl_modalVisible = true;
+                });
+            },
+            closeCreateClassModal() { this.cl_modalVisible = false; },
+
+            submitCreateClassModal() {
+                if (!this.cl_form.schoolId) { alert('请先选择学校'); return; }
+                const name = (this.cl_form.name || '').trim();
+                const grade = (this.cl_form.grade || '').trim();
+                if (!name) { alert('班级名称不能为空'); return; }
+
+                const payload = { name: name, schoolId: this.cl_form.schoolId, grade: grade };
+                const headers = this._getAuthHeaders();
+
+                const doPost = () => {
+                    if (window.ApiCore && typeof window.ApiCore.post === 'function') return window.ApiCore.post('/classe/add', payload);
+                    if (!window.axios || typeof window.axios.post !== 'function') return Promise.reject(new Error('no http client'));
+                    const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                    const url = (base ? base : '') + '/classe/add';
+                    return window.axios.post(url, payload, { headers: headers, withCredentials: true });
+                };
+
+                this.cl_loading = true;
+                doPost()
+                    .then(res => {
+                        console.info('createClass ok', res && res.data ? res.data : res);
+                        this.cl_modalVisible = false;
+                        const loadSchool = this.cl_selectedSchoolId || this.cl_form.schoolId;
+                        this.cl_form.name = '';
+                        this.cl_form.grade = '';
+                        this.loadClasses(loadSchool, this.cl_searchStr, this.cl_gradeFilter);
+                    })
+                    .catch(err => {
+                        console.error('createClass failed', err);
+                        alert('创建班级失败');
+                    })
+                    .finally(() => { this.cl_loading = false; });
+            },
+
+// 编辑（保持 prompt 风格，或你可改为 modal）
+            editClass(item) {
+                if (!item) return;
+                const newName = prompt('编辑班级名称：', item.name || '');
+                if (newName === null) return;
+                const newGrade = prompt('编辑班级年级：', item.grade || '');
+                if (newGrade === null) return;
+                const trimmedName = (newName || '').trim();
+                const trimmedGrade = (newGrade || '').trim();
+                if (!trimmedName) { alert('名称不能为空'); return; }
+
+                const payload = {
+                    classeId: item.classeId,
+                    name: trimmedName,
+                    schoolId: item.schoolId || this.cl_selectedSchoolId,
+                    grade: trimmedGrade
+                };
+                const headers = this._getAuthHeaders();
+
+                const doPost = () => {
+                    if (window.ApiCore && typeof window.ApiCore.post === 'function') return window.ApiCore.post('/classe/update', payload);
+                    if (!window.axios || typeof window.axios.post !== 'function') return Promise.reject(new Error('no http client'));
+                    const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                    const url = (base ? base : '') + '/classe/update';
+                    return window.axios.post(url, payload, { headers: headers, withCredentials: true });
+                };
+
+                item._saving = true;
+                doPost()
+                    .then(res => {
+                        console.info('editClass ok', res && res.data ? res.data : res);
+                        item.name = trimmedName;
+                        item.grade = trimmedGrade;
+                    })
+                    .catch(err => {
+                        console.error('editClass failed', err);
+                        alert('更新失败');
+                    })
+                    .finally(() => { item._saving = false; });
+            },
+
+// 删除
+            deleteClass(item) {
+                if (!item) return;
+                if (!confirm('确定删除班级 "' + (item.name || '') + '" 吗？')) return;
+                const payload = { classeId: item.classeId };
+                const headers = this._getAuthHeaders();
+
+                const doPost = () => {
+                    if (window.ApiCore && typeof window.ApiCore.post === 'function') return window.ApiCore.post('/classe/delete', payload);
+                    if (!window.axios || typeof window.axios.post !== 'function') return Promise.reject(new Error('no http client'));
+                    const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                    const url = (base ? base : '') + '/classe/delete';
+                    return window.axios.post(url, payload, { headers: headers, withCredentials: true });
+                };
+
+                item._saving = true;
+                doPost()
+                    .then(res => {
+                        console.info('deleteClass ok', res && res.data ? res.data : res);
+                        this.cl_items = this.cl_items.filter(c => c.classeId !== item.classeId);
+                    })
+                    .catch(err => {
+                        console.error('deleteClass failed', err);
                         alert('删除失败');
                     })
                     .finally(() => { item._saving = false; });
@@ -832,6 +1143,51 @@
                 </div>
               </div>
 
+<div v-else-if="activeTop === 'classes' && activeSub === 'singleClass'">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+    <select v-model="cl_selectedSchoolId" @change="loadClasses(cl_selectedSchoolId, cl_searchStr, cl_gradeFilter)" style="padding:6px 10px;border:1px solid #e6eef8;border-radius:6px">
+      <option v-for="s in sch_items" :key="s.schoolId" :value="s.schoolId">{{ s.name }}</option>
+    </select>
+
+    <input v-model="cl_searchStr" placeholder="班级名称" style="padding:6px 10px;border:1px solid #e6eef8;border-radius:6px" />
+    <input v-model="cl_gradeFilter" placeholder="年级" style="padding:6px 10px;border:1px solid #e6eef8;border-radius:6px;width:120px" />
+    <button @click="loadClasses(cl_selectedSchoolId, cl_searchStr, cl_gradeFilter)" style="background:#2b7cff;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer">筛选</button>
+    <button @click="openCreateClassModal" style="background:#2b7cff;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer">创建单个班级</button>
+    <div style="color:#8894a6;font-size:13px">学校来自 /school/listAll，班级接口在 /classe/*</div>
+  </div>
+
+  <div v-if="cl_loading" style="padding:24px;text-align:center;color:#666">加载中…</div>
+  <div v-else-if="cl_error" style="padding:24px;color:#d9534f">{{ cl_error }}</div>
+
+  <div v-else>
+    <div v-if="!cl_items || cl_items.length === 0" style="padding:28px;text-align:center;color:#9aa6b2">
+      <div style="font-size:14px">No data</div>
+    </div>
+
+    <div v-else>
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:#fafafa;border-bottom:1px solid #eef2f7">
+            <th style="text-align:left;padding:12px 16px">班级名称</th>
+            <th style="text-align:left;padding:12px 16px">年级</th>
+            <th style="text-align:center;padding:12px 16px;width:160px">管理</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="c in cl_items" :key="c.classeId" style="border-bottom:1px solid #f2f6fa">
+            <td style="padding:12px 16px;color:#333">{{ c.name }}</td>
+            <td style="padding:12px 16px;color:#333">{{ c.grade }}</td>
+            <td style="text-align:center;padding:10px 12px">
+              <button @click="editClass(c)" :disabled="c._saving" style="background:#2b7cff;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;margin-right:8px">编辑</button>
+              <button @click="deleteClass(c)" :disabled="c._saving" style="background:#ff6b6b;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer">删除</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
               <!-- 学习对象管理 -->
               <div v-if="activeTop === '学习对象管理'">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -951,6 +1307,40 @@
                   </div>
                 </div>
               </div>
+              
+              <!-- Create Class Modal: 放置在 template 末尾（在主内容结尾前） -->
+<div v-if="cl_modalVisible" style="position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:2000">
+  <div style="width:420px;background:#fff;border-radius:8px;padding:18px;box-shadow:0 8px 40px rgba(0,0,0,0.12);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-weight:600">新增班级</div>
+      <button @click="closeCreateClassModal" style="background:transparent;border:none;font-size:18px;cursor:pointer">✕</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div>
+        <div style="font-size:12px;color:#666;margin-bottom:6px">学校</div>
+        <select v-model="cl_form.schoolId" style="width:100%;padding:8px;border:1px solid #e6eef8;border-radius:6px">
+          <option v-for="s in sch_items" :key="s.schoolId" :value="s.schoolId">{{ s.name }}</option>
+        </select>
+      </div>
+
+      <div>
+        <div style="font-size:12px;color:#666;margin-bottom:6px">班级名称</div>
+        <input v-model="cl_form.name" placeholder="请输入班级名称（示例：1班）" style="width:100%;padding:8px;border:1px solid #e6eef8;border-radius:6px" />
+      </div>
+
+      <div>
+        <div style="font-size:12px;color:#666;margin-bottom:6px">年级</div>
+        <input v-model="cl_form.grade" placeholder="请输入年级（示例：1 / 高一 / 2023）" style="width:100%;padding:8px;border:1px solid #e6eef8;border-radius:6px" />
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
+        <button @click="closeCreateClassModal" style="background:#fff;border:1px solid #ccc;padding:6px 12px;border-radius:6px;cursor:pointer">取消</button>
+        <button @click="submitCreateClassModal" :disabled="cl_loading" style="background:#2b7cff;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer">确认</button>
+      </div>
+    </div>
+  </div>
+</div>
 
               <!-- 其他模块占位 -->
               <div v-else>
