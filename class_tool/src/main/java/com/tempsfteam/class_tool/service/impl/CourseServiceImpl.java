@@ -47,7 +47,8 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course>
     @Resource
     UserToCourseService userToCourseService;
 
-    private final String pre = "https://yunxclasses.cn/cloudClassroom/api/file/image/";
+    @Value("${image.pre}")
+    private String pre;
 
     @Value("${image.courseIcon}")
     private String courseIconFolder;

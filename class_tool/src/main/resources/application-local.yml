@@ -77,3 +77,4 @@ file:
 #图片保存路径
 image:
   courseIcon: C:\image\courseIcon\
+  pre: http://localhost:8089/cloudClassroom/api/file/image/
