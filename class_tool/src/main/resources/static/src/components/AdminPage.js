@@ -1057,70 +1057,65 @@
             // ---------------- 授予单个课程模块 ----------------
 
         // 1) 进入页面时加载简略课程供下拉选择（GET /course/getSimpleCourseVO）
+            // 修正后的 loadSimpleCourses
             loadSimpleCourses() {
                 this.grant_loading = true;
                 this.grant_error = null;
-                const headers = this._getAuthHeaders();
-                const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
-                const url = (base ? base : '') + '/course/getSimpleCourseVO';
+                // 不要自己拼 base，直接给 ApiCore 相对路径
+                const path = '/course/getSimpleCourseVO';
 
                 const handleResult = (dataPayload) => {
-                    // dataPayload may be array or object with list/data/simpleCourseVOList etc.
                     let candidate = dataPayload !== undefined && dataPayload.data !== undefined ? dataPayload.data : dataPayload;
-                    // if candidate is object and has typical field simpleCourseVOList / list / records, prefer them
                     let arr = [];
                     if (Array.isArray(candidate)) arr = candidate;
                     else if (Array.isArray(candidate.simpleCourseVOList)) arr = candidate.simpleCourseVOList;
                     else if (Array.isArray(candidate.list)) arr = candidate.list;
                     else if (Array.isArray(candidate.records)) arr = candidate.records;
                     else {
-                        // scan properties for first array
                         for (const k of Object.keys(candidate || {})) {
                             if (Array.isArray(candidate[k])) { arr = candidate[k]; break; }
                         }
                     }
 
-                    // Normalise each course item to { id, name }
                     this.grant_course_list = (arr || []).map(c => {
                         const id = c.id !== undefined ? c.id : (c.courseId !== undefined ? c.courseId : (c.simpleId !== undefined ? c.simpleId : null));
                         const name = c.name || c.title || c.courseName || c.cnName || '';
                         return { id: id, name: name, _raw: c };
                     });
-
-                    // debug
-                    try { console.debug('grant_course_list', this.grant_course_list); } catch (e) {}
                 };
 
                 if (window.ApiCore && typeof window.ApiCore.get === 'function') {
-                    return window.ApiCore.get(url)
+                    return window.ApiCore.get(path)
                         .then(resp => {
                             const data = resp && resp.data !== undefined ? resp.data : (resp || null);
                             handleResult(data);
                         })
                         .catch(err => { console.error('loadSimpleCourses failed', err); this.grant_error = '获取课程失败'; })
                         .finally(()=>{ this.grant_loading = false; });
-                } else {
-                    return window.axios.get(url, { headers: headers, withCredentials: true })
+                } else if (window.axios && typeof window.axios.get === 'function') {
+                    // 退回到全局 axios：此时我们自己拼 base（但只有在 ApiCore 不可用时）
+                    const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                    const full = (base ? base : '') + path;
+                    return window.axios.get(full, { withCredentials: true })
                         .then(res => {
                             const data = res && res.data !== undefined ? res.data : (res || null);
                             handleResult(data);
                         })
                         .catch(err => { console.error('loadSimpleCourses axios failed', err); this.grant_error = '获取课程失败'; })
                         .finally(()=>{ this.grant_loading = false; });
+                } else {
+                    this.grant_loading = false;
+                    this.grant_error = 'No HTTP client available';
+                    return Promise.reject(new Error('no http client'));
                 }
             },
 
-// 2) 加载用户及他们已有课程列表（GET /course/getAllUserCourseAllowance）
-// 参数: role (Integer 必填，0/1)，searchType, searchStr；带分页 current/size
+// 修正后的 loadUserCourseAllowances
             loadUserCourseAllowances(role, current, size, searchType, searchStr) {
                 this.grant_loading = true;
                 this.grant_error = null;
                 this.grant_items = [];
-                const headers = this._getAuthHeaders();
-                const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
-                const url = (base ? base : '') + '/course/getAllUserCourseAllowance';
 
-                // normalize
                 this.grant_role = (role !== undefined && role !== null) ? Number(role) : this.grant_role;
                 this.grant_current = current !== undefined ? Number(current) : (this.grant_current || 1);
                 this.grant_size = size !== undefined ? Number(size) : (this.grant_size || 10);
@@ -1128,24 +1123,31 @@
                 this.grant_searchStr = (searchStr !== undefined) ? searchStr : this.grant_searchStr;
 
                 const params = { current: this.grant_current, size: this.grant_size, role: this.grant_role, searchType: this.grant_searchType || '', searchStr: this.grant_searchStr || '' };
+                const qs = Object.keys(params).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&');
+                const path = '/course/getAllUserCourseAllowance?' + qs;
 
                 if (window.ApiCore && typeof window.ApiCore.get === 'function') {
-                    const qs = Object.keys(params).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&');
-                    return window.ApiCore.get(url + '?' + qs)
+                    return window.ApiCore.get('/course/getAllUserCourseAllowance' + '?' + qs)
                         .then(resp => {
                             const data = resp && resp.data !== undefined ? resp.data : (resp || null);
                             this._handleGrantResponse(data);
                         })
                         .catch(err => { console.error('getAllUserCourseAllowance ApiCore failed', err); this.grant_error='获取失败'; })
                         .finally(()=>{ this.grant_loading = false; });
-                } else {
-                    return window.axios.get(url, { params: params, headers: headers, withCredentials: true })
+                } else if (window.axios && typeof window.axios.get === 'function') {
+                    const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                    const full = (base ? base : '') + '/course/getAllUserCourseAllowance';
+                    return window.axios.get(full, { params: params, withCredentials: true })
                         .then(res => {
                             const data = res && res.data !== undefined ? res.data : (res || null);
                             this._handleGrantResponse(data);
                         })
                         .catch(err => { console.error('getAllUserCourseAllowance axios failed', err); this.grant_error='获取失败'; })
                         .finally(()=>{ this.grant_loading = false; });
+                } else {
+                    this.grant_loading = false;
+                    this.grant_error = 'No HTTP client available';
+                    return Promise.reject(new Error('no http client'));
                 }
             },
 
