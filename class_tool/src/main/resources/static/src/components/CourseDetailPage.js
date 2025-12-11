@@ -15,22 +15,20 @@
         props: ['store'],
         data() {
             return {
+                // ... (unchanged data as before)
                 loading: false,
                 error: null,
-                // course detail shape (fill from /course/getDetail)
                 course: {
                     courseId: null,
                     name: '',
                     description: '',
-                    icon: '', // course image url
+                    icon: '',
                     managerId: null,
-                    simpleExperiments: [] // 目录项数组，元素包含 { id, title, ... }
+                    simpleExperiments: []
                 },
-                // UI states for delete/edit
                 deleting: false,
                 editing: false,
 
-                // edit modal state (for course)
                 editModalVisible: false,
                 editLoading: false,
                 editForm: {
@@ -41,9 +39,8 @@
                     imageName: '',
                     managerId: null
                 },
-                managerOptions: [], // course managers
+                managerOptions: [],
 
-                // Experiment (directory) create/edit modals
                 createExperimentModalVisible: false,
                 createExperimentLoading: false,
                 createExperimentForm: { name: '' },
@@ -52,7 +49,7 @@
                 editExperimentLoading: false,
                 editExperimentForm: { experimentId: null, name: '' },
 
-                deleteExperimentLoadingId: null // id being deleted (for per-item spinner/disable)
+                deleteExperimentLoadingId: null
             };
         },
         computed: {
@@ -64,11 +61,49 @@
                 return 'data:image/svg+xml;utf8,' + encodeURIComponent(
                     '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260"><rect width="100%" height="100%" fill="#eef2f7"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="20" fill="#9aa7b6">No Image</text></svg>'
                 );
+            },
+
+            // New: whether current user may manage (edit/delete) courses and experiments
+            // true if user is 超级管理员 (roleCode 3) or 课程管理员 (roleCode 2)
+            canManage() {
+                // 1) try store.user first
+                const u = (this.store && this.store.user) ? this.store.user : null;
+                const check = (user) => {
+                    if (!user) return false;
+                    // normalized roleCode if present
+                    if (user.roleCode !== undefined && user.roleCode !== null) {
+                        const rc = Number(user.roleCode);
+                        if (rc === 3 || rc === 2) return true;
+                    }
+                    // try roleName / userRole / role fields
+                    const rn = (user.roleName || user.userRole || user.role || '').toString();
+                    if (rn === '超级管理员' || rn === '课程管理员') return true;
+                    if (String(rn) === '3' || String(rn) === '2') return true;
+                    return false;
+                };
+
+                if (check(u)) return true;
+
+                // fallback: try localStorage persisted user
+                try {
+                    const raw = localStorage.getItem('sf_user') || localStorage.getItem('user') || null;
+                    if (raw) {
+                        const uu = JSON.parse(raw);
+                        if (check(uu)) return true;
+                    }
+                } catch (e) { /* ignore parse errors */ }
+
+                // fallback: global
+                try {
+                    if (window.__CURRENT_USER__ && check(window.__CURRENT_USER__)) return true;
+                } catch (e) {}
+
+                return false;
             }
         },
+
         created() {
             try { if (window.ApiCore && this.store && this.store.apiBase) window.ApiCore.setBaseURL(this.store.apiBase); } catch (e) {}
-            // Attempt to read courseId from route query (if using vue-router) or from prop
             const idFromQuery = (this.$route && this.$route.query && this.$route.query.courseId) ? Number(this.$route.query.courseId) : null;
             const idFromParams = (this.$route && this.$route.params && this.$route.params.courseId) ? Number(this.$route.params.courseId) : null;
             const idFromProp = this.courseId !== undefined ? Number(this.courseId) : null;
@@ -76,7 +111,6 @@
             if (courseId) {
                 this.loadCourseDetail(courseId);
             } else {
-                // No id - keep placeholder course to show layout
                 this.course = {
                     courseId: null,
                     name: '示例课程名称（未传入 courseId）',
@@ -385,7 +419,15 @@
 
             // open create modal
             openCreateExperimentModal() {
-                if (!this.course || !this.course.courseId) { alert('缺少 courseId，无法新建目录'); return; }
+                // 权限校验（如无权限则阻止并提示）
+                if (!this.canManage) {
+                    alert('没有权限新建课程目录');
+                    return;
+                }
+                if (!this.course || !this.course.courseId) {
+                    alert('缺少 courseId，无法新建目录');
+                    return;
+                }
                 this.createExperimentForm = { name: '' };
                 this.createExperimentModalVisible = true;
             },
@@ -527,8 +569,9 @@
         <div style="margin-top:12px;display:flex;align-items:center;gap:12px">
           <button @click="goBack" style="background:#2b7cff;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer">返回</button>
           <div style="margin-left:auto;display:flex;gap:8px">
-            <button @click="onEditCourse" :disabled="!course.courseId" style="background:#2b7cff;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer">编辑课程</button>
-            <button @click="onDeleteCourse" :disabled="!course.courseId || deleting" style="background:#ff6b6b;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer">{{ deleting ? '删除中...' : '删除课程' }}</button>
+            <!-- only show edit/delete course to allowed roles -->
+            <button v-if="canManage" @click="onEditCourse" :disabled="!course.courseId" style="background:#2b7cff;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer">编辑课程</button>
+            <button v-if="canManage" @click="onDeleteCourse" :disabled="!course.courseId || deleting" style="background:#ff6b6b;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer">{{ deleting ? '删除中...' : '删除课程' }}</button>
           </div>
         </div>
 
@@ -549,7 +592,7 @@
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
             <div style="font-weight:600">课程目录</div>
             <div>
-              <button @click="openCreateExperimentModal" style="background:#2b7cff;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer">新建课程目录</button>
+              <button v-if="canManage" @click="openCreateExperimentModal" style="background:#2b7cff;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer">新建课程目录</button>
             </div>
           </div>
 
@@ -562,8 +605,9 @@
               <div style="color:#333">{{ (idx+1) + '. ' + (it.title || it.name || it.experimentName || ('目录项 ' + (idx+1))) }}</div>
               <div style="display:flex;gap:8px;align-items:center">
                 <button @click="enterExperiment(it)" style="padding:6px 10px;border-radius:6px;border:1px solid #e6eef8;background:#fff;cursor:pointer">进入</button>
-                <button @click="openEditExperimentModal(it)" style="padding:6px 10px;border-radius:6px;border:none;background:#2b7cff;color:#fff;cursor:pointer">编辑</button>
-                <button @click="deleteExperiment(it)" :disabled="deleteExperimentLoadingId === (it.experimentId||it.id)" style="padding:6px 10px;border-radius:6px;border:none;background:#ff6b6b;color:#fff;cursor:pointer">{{ deleteExperimentLoadingId === (it.experimentId||it.id) ? '删除中...' : '删除' }}</button>
+                <!-- only show edit/delete experiment to allowed roles -->
+                <button v-if="canManage" @click="openEditExperimentModal(it)" style="padding:6px 10px;border-radius:6px;border:none;background:#2b7cff;color:#fff;cursor:pointer">编辑</button>
+                <button v-if="canManage" @click="deleteExperiment(it)" :disabled="deleteExperimentLoadingId === (it.experimentId||it.id)" style="padding:6px 10px;border-radius:6px;border:none;background:#ff6b6b;color:#fff;cursor:pointer">{{ deleteExperimentLoadingId === (it.experimentId||it.id) ? '删除中...' : '删除' }}</button>
               </div>
             </div>
           </div>
