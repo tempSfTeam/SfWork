@@ -3,9 +3,9 @@ server:
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    username: rdc
-    password: Rdc23@remote
-    url: jdbc:mysql://1.95.80.153:3306/cloud_classroom
+    username: root
+    password: hidesuwa
+    url: jdbc:mysql://8.138.228.106:3306/cloud_classroom
     # 配置数据库连接池 Hikari 连接池
     hikari:
       minimum-idle: 3
@@ -23,9 +23,9 @@ spring:
     # Redis数据库索引（默认为0）
     database: 0
     # Redis服务器地址
-    host: 1.95.80.153
+    host: 8.138.228.106
     # Redis服务器连接端口
-    port: 9736
+    port: 6379
     # 连接超时时间
     timeout: 10s
     lettuce:
@@ -38,7 +38,7 @@ spring:
         max-idle: 10
         # 连接池中的最小空闲连接
         min-idle: 0
-    password: Rdc23@redis
+    password: hidesuwa
 
 logging:
   file:
@@ -78,4 +78,4 @@ file:
   #图片保存路径
 image:
   courseIcon: /usr/local/cloud_classroom/file/image/courseIcon/
-  pre: https://yunxclasses.cn/cloudClassroom/api/file/image/
+  pre: https://8.138.228.106:8089/cloudClassroom/api/file/image/
