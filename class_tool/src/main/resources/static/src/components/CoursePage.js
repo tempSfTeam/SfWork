@@ -568,6 +568,32 @@
                     this.createLoading = false;
                 }
             },
+
+            // 跳转到课程详情页面（与 HomePage 中的 _navigateToCourse 同逻辑）
+            navigateToCourse(c) {
+                if (!c) return;
+                const raw = c.raw || {};
+                const id = Number(raw.courseId || raw.id || raw.course_id || raw.courseId) || null;
+                const fallbackId = Number(c.id || c.courseId) || null;
+                const courseId = id || fallbackId;
+                if (!courseId) { alert('无法获取课程ID'); return; }
+
+                // 使用 router 优先
+                try {
+                    if (this.$router && typeof this.$router.push === 'function') {
+                        this.$router.push({ name: 'CourseDetail', query: { courseId: courseId } });
+                        return;
+                    }
+                } catch (e) {}
+
+                // fallback to hash navigation
+                try {
+                    const prefix = window.location.origin + (window.location.pathname || '');
+                    window.location.href = prefix.replace(/\/$/, '') + '#/course-detail?courseId=' + encodeURIComponent(courseId);
+                } catch (e) {
+                    window.open('/#/course-detail?courseId=' + encodeURIComponent(courseId), '_self');
+                }
+            }
         },
         template: `
       <div>
@@ -686,7 +712,7 @@
                     <div style="color:#9aa7b6;font-size:13px">浏览量 {{ c.click || c.view || 0 }}</div>
                   </div>
                   <div style="text-align:right;margin-top:12px">
-                    <button style="padding:8px 12px;border-radius:16px;background:#2b7cff;color:#fff;border:none;cursor:pointer">进入课堂</button>
+                    <button @click="navigateToCourse(c)" style="padding:8px 12px;border-radius:16px;background:#2b7cff;color:#fff;border:none;cursor:pointer">进入课堂</button>
                   </div>
                 </div>
               </div>

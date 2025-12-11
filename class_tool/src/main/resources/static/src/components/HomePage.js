@@ -55,7 +55,41 @@
                 }
             },
             onImgError(e) { try { e.target.src = this.defaultCourseIcon; } catch (err) {} },
-            enterCourse(c) { alert('进入课程: ' + (c.name || '')); }
+            enterCourse(c) {
+                if (!c) return;
+                // 尝试从 card 的 raw 对象中提取 id，多种字段兼容
+                const raw = c.raw || {};
+                const id = Number(raw.courseId || raw.id || raw.course_id || raw.courseId || raw.courseId || raw.courseId || raw.courseId || null) || null;
+                if (!id) {
+                    // 兼容一些情况：如果 card 使用 c.id
+                    const fallbackId = Number(c.id || c.courseId) || null;
+                    if (!fallbackId) { alert('无法获取课程ID'); return; }
+                    else return this._navigateToCourse(fallbackId);
+                }
+                return this._navigateToCourse(id);
+            },
+            // 导航通用函数
+            _navigateToCourse(courseId) {
+                if (!courseId) return;
+                // 使用 router（优先）
+                try {
+                    if (this.$router && typeof this.$router.push === 'function') {
+                        // 使用命名路由或 path，CourseDetail 路由在下面示例中用 name: 'CourseDetail'
+                        this.$router.push({ name: 'CourseDetail', query: { courseId: courseId } });
+                        return;
+                    }
+                } catch (e) {}
+                // 回退：hash 模式跳转（项目 SPA）
+                try {
+                    const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                    // 如果你的 SPA 使用 #/ 路由
+                    const prefix = window.location.origin + (window.location.pathname || '');
+                    window.location.href = prefix.replace(/\/$/, '') + '#/course-detail?courseId=' + encodeURIComponent(courseId);
+                } catch (e) {
+                    // 最后手动打开新窗口
+                    window.open('/#/course-detail?courseId=' + encodeURIComponent(courseId), '_self');
+                }
+            }
         },
         template: `
       <div>

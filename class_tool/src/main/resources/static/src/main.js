@@ -99,6 +99,7 @@
     const ProfilePage = window.ProfilePageComponent || { template: '<div>Profile component missing</div>' };
     const CoursesPage = window.CoursesPageComponent || { template: '<div>Courses component missing</div>' };
     const AdminPage = window.AdminPageComponent || { template: '<div>Admin component missing</div>' };
+    const CourseDetailPage = window.CourseDetailPageComponent || { template: '<div>CourseDetail component missing</div>' };
 
     const routes = [
         { path: '/', redirect: '/login' },
@@ -108,6 +109,7 @@
         { path: '/dashboard', component: HomePage, props: { store }, meta: { requiresAuth: true } },
         { path: '/profile', component: ProfilePage, props: { store }, meta: { requiresAuth: true } },
         { path: '/courses', component: CoursesPage, props: { store }, meta: { requiresAuth: true } },
+        { path: '/course-detail', name: 'CourseDetail', component: CourseDetailPage, props: { store }, meta: { requiresAuth: true } },
 
         // management page (visible only to roleCode 2 or 3; route still protected by auth)
         { path: '/admin', component: AdminPage, props: { store }, meta: { requiresAuth: true } }
