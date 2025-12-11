@@ -78,4 +78,4 @@ file:
   #图片保存路径
 image:
   courseIcon: /usr/local/cloud_classroom/file/image/courseIcon/
-  pre: https://8.138.228.106:8089/cloudClassroom/api/file/image/
+  pre: http://8.138.228.106:8089/cloudClassroom/api/file/image/

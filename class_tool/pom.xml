@@ -228,7 +228,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>${spring-boot.version}</version>
                 <configuration>
-                    <mainClass>com.rdc.CloudClassroomApplication</mainClass>
+                    <mainClass>com.tempsfteam.class_tool.ClassToolApplication</mainClass>
                 </configuration>
                 <executions>
                     <execution>

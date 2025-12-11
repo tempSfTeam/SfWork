@@ -11,6 +11,32 @@
       <rect width='100%' height='100%' rx='8' fill='%232b7cff'/>
       <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='28' fill='%23fff' font-family='Arial, Helvetica, sans-serif'>云</text>
     </svg>">
+
+    <!-- Runtime API base injection:
+         - If visiting from non-localhost (i.e. the cloud server public IP), set API_BASE to /cloudClassroom/api
+         - If visiting on localhost (local dev), keep original behavior (fallback to http://localhost:8089/...)
+         This preserves local development while enabling production deployment without changing source JS.
+    -->
+    <script>
+        (function() {
+            try {
+                var host = (location && location.hostname) ? location.hostname : '';
+                // treat empty hostname or "localhost"/"127.0.0.1" as local development
+                var isLocal = (host === 'localhost' || host === '127.0.0.1' || host === '' );
+                if (!isLocal) {
+                    // Production on cloud server: use nginx proxy path
+                    window.API_BASE = '/cloudClassroom/api';
+                    window.__FILE_ACCESS_PREFIX__ = '/cloudClassroom/api/file/';
+                    console.info('Injected API_BASE =', window.API_BASE);
+                } else {
+                    // Keep existing fallback (do not override) so local dev still uses http://localhost:8089
+                    window.API_BASE = window.API_BASE || 'http://localhost:8089/cloudClassroom/api';
+                }
+            } catch (e) {
+                console.warn('Failed to set runtime API_BASE', e);
+            }
+        })();
+    </script>
 </head>
 <body>
 <div id="shared-header"></div>
