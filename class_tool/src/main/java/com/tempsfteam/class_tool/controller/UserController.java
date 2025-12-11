@@ -100,7 +100,7 @@ public class UserController {
     public Msg getUserInfo() throws Exception {
         long userId = StpUtil.getLoginIdAsLong();
         User user = userService.getById(userId);
-        return user == null ? Msg.notLegal("用户不存在") : Msg.success("获取用户信息成功", UserVO.convertToUserVO(user));
+        return user == null ? Msg.notLegal("用户不存在") : Msg.success("获取用户信息成功", UserVO.convertToUserVO(user),user.getUserId());
     }
 
 
