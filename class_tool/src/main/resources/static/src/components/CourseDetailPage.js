@@ -4,6 +4,10 @@
 // - 会尝试调用 /course/getDetail?courseId=...（优先使用 window.ApiCore.get，回退到 axios）并带 Authorization: Bearer <token>
 // - 新增：编辑课程 modal（调用 /course/update，multipart，带 token）
 // - 新增：删除课程 调用 /course/delete (POST JSON { courseId })
+// - 新增：课程目录 CRUD：
+//     - 新建目录 POST /experiment/add  body { name, courseId }
+//     - 编辑目录 POST /experiment/update body { experimentId, name }
+//     - 删除目录 POST /experiment/delete body { experimentId }
 // - 如果没有 courseId，则展示占位信息（便于先做布局）
 // - UMD style 与项目中其他页面一致：最后赋值到 window.CourseDetailPageComponent
 (function () {
@@ -26,7 +30,7 @@
                 deleting: false,
                 editing: false,
 
-                // edit modal state
+                // edit modal state (for course)
                 editModalVisible: false,
                 editLoading: false,
                 editForm: {
@@ -37,7 +41,18 @@
                     imageName: '',
                     managerId: null
                 },
-                managerOptions: [] // { userId, name }
+                managerOptions: [], // course managers
+
+                // Experiment (directory) create/edit modals
+                createExperimentModalVisible: false,
+                createExperimentLoading: false,
+                createExperimentForm: { name: '' },
+
+                editExperimentModalVisible: false,
+                editExperimentLoading: false,
+                editExperimentForm: { experimentId: null, name: '' },
+
+                deleteExperimentLoadingId: null // id being deleted (for per-item spinner/disable)
             };
         },
         computed: {
@@ -116,7 +131,6 @@
                 const headers = this._getAuthHeaders();
                 const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
                 const url = (base ? base : '') + '/course/getDetail';
-                // Build query string because ApiCore.get in this project often used with url+qs
                 const qs = '?courseId=' + encodeURIComponent(courseId);
                 if (window.ApiCore && typeof window.ApiCore.get === 'function') {
                     return window.ApiCore.get(url + qs)
@@ -190,7 +204,7 @@
                 try { window.history.back(); } catch (e) {}
             },
 
-            // Open edit modal and prefill form with current course data
+            // --- Course edit modal methods (unchanged) ---
             onEditCourse() {
                 if (!this.course || !this.course.courseId) {
                     alert('当前课程不可编辑（缺少 courseId）');
@@ -207,13 +221,11 @@
 
                 // load manager options then show modal
                 this.loadManagerOptions().then(() => {
-                    // if no manager selected, pick current managerId or first option
                     if ((!this.editForm.managerId || this.editForm.managerId === null) && this.managerOptions.length) {
                         this.editForm.managerId = this.managerOptions[0].userId;
                     }
                     this.editModalVisible = true;
                 }).catch(err => {
-                    // still show modal even if manager list failed
                     if ((!this.editForm.managerId || this.editForm.managerId === null) && this.managerOptions.length) {
                         this.editForm.managerId = this.managerOptions[0].userId;
                     }
@@ -221,7 +233,6 @@
                 });
             },
 
-            // load managers (course admin candidates)
             loadManagerOptions() {
                 const headers = this._getAuthHeaders();
                 const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
@@ -281,7 +292,6 @@
                 this.managerOptions = mapped;
             },
 
-            // file change for edit modal
             onEditImageChange(e) {
                 const f = (e.target && e.target.files && e.target.files[0]) ? e.target.files[0] : null;
                 if (!f) {
@@ -293,7 +303,6 @@
                 this.editForm.imageName = f.name || '';
             },
 
-            // submit update: POST /course/update (multipart)
             async submitUpdateCourse() {
                 // validation
                 if (!this.editForm.name || !this.editForm.name.trim()) { alert('课程名称不能为空'); return; }
@@ -321,7 +330,6 @@
                         const cfg = { headers: Object.assign({}, headers), withCredentials: true };
                         res = await window.axios.post(url, fd, cfg);
                     } else if (window.ApiCore && typeof window.ApiCore.post === 'function') {
-                        // try ApiCore.post
                         res = await window.ApiCore.post('/course/update', fd, { headers: headers, withCredentials: true });
                     } else {
                         throw new Error('No HTTP client available for POST');
@@ -329,7 +337,6 @@
                     console.info('update course ok', res && res.data ? res.data : res);
                     alert('课程更新成功');
                     this.editModalVisible = false;
-                    // refresh detail
                     if (this.course && this.course.courseId) await this.loadCourseDetail(this.course.courseId);
                 } catch (err) {
                     console.error('update course failed', err);
@@ -342,7 +349,6 @@
                 }
             },
 
-            // delete course: POST /course/delete with JSON body { courseId }
             async onDeleteCourse() {
                 if (!this.course || !this.course.courseId) { alert('当前无可删除的课程'); return; }
                 if (!confirm('确定删除该课程吗？')) return;
@@ -363,7 +369,6 @@
                     }
                     console.info('delete course ok', res && res.data ? res.data : res);
                     alert('课程已删除');
-                    // go back to previous page
                     this.goBack();
                 } catch (err) {
                     console.error('delete course failed', err);
@@ -373,6 +378,134 @@
                     alert('删除失败：' + msg);
                 } finally {
                     this.deleting = false;
+                }
+            },
+
+            // --- Experiments (目录) CRUD methods ---
+
+            // open create modal
+            openCreateExperimentModal() {
+                if (!this.course || !this.course.courseId) { alert('缺少 courseId，无法新建目录'); return; }
+                this.createExperimentForm = { name: '' };
+                this.createExperimentModalVisible = true;
+            },
+
+            // submit create experiment -> POST /experiment/add { name, courseId }
+            async submitCreateExperiment() {
+                const name = (this.createExperimentForm.name || '').trim();
+                if (!name) { alert('名称不能为空'); return; }
+                if (name.length > 50) { alert('名称长度不能超过50'); return; }
+                if (!this.course || !this.course.courseId) { alert('缺少 courseId'); return; }
+
+                const payload = { name: name, courseId: Number(this.course.courseId) };
+                this.createExperimentLoading = true;
+                const headers = this._getAuthHeaders();
+                const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                const url = (base ? base : '') + '/experiment/add';
+
+                try {
+                    let res;
+                    if (window.axios && typeof window.axios.post === 'function') {
+                        res = await window.axios.post(url, payload, { headers: Object.assign({ 'Content-Type': 'application/json' }, headers), withCredentials: true });
+                    } else if (window.ApiCore && typeof window.ApiCore.post === 'function') {
+                        res = await window.ApiCore.post('/experiment/add', payload);
+                    } else {
+                        throw new Error('No HTTP client available for POST');
+                    }
+                    console.info('create experiment ok', res && res.data ? res.data : res);
+                    alert('创建成功');
+                    this.createExperimentModalVisible = false;
+                    // reload course detail to refresh simpleExperiments
+                    if (this.course && this.course.courseId) await this.loadCourseDetail(this.course.courseId);
+                } catch (err) {
+                    console.error('create experiment failed', err);
+                    const msg = err && err.response && err.response.data && (err.response.data.msg || err.response.data.message)
+                        ? (err.response.data.msg || err.response.data.message)
+                        : (err && err.message ? err.message : '网络或服务器错误');
+                    alert('创建失败：' + msg);
+                } finally {
+                    this.createExperimentLoading = false;
+                }
+            },
+
+            // open edit modal for specific experiment
+            openEditExperimentModal(it) {
+                if (!it || !it.id && !it.experimentId) return;
+                const id = it.experimentId !== undefined ? it.experimentId : (it.id !== undefined ? it.id : null);
+                this.editExperimentForm = { experimentId: id, name: it.title || it.name || '' };
+                this.editExperimentModalVisible = true;
+            },
+
+            // submit update experiment -> POST /experiment/update { experimentId, name }
+            async submitUpdateExperiment() {
+                const name = (this.editExperimentForm.name || '').trim();
+                const experimentId = this.editExperimentForm.experimentId;
+                if (!experimentId) { alert('缺少 experimentId'); return; }
+                if (!name) { alert('名称不能为空'); return; }
+                if (name.length > 50) { alert('名称长度不能超过50'); return; }
+
+                const payload = { experimentId: Number(experimentId), name: name };
+                this.editExperimentLoading = true;
+                const headers = this._getAuthHeaders();
+                const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                const url = (base ? base : '') + '/experiment/update';
+
+                try {
+                    let res;
+                    if (window.axios && typeof window.axios.post === 'function') {
+                        res = await window.axios.post(url, payload, { headers: Object.assign({ 'Content-Type': 'application/json' }, headers), withCredentials: true });
+                    } else if (window.ApiCore && typeof window.ApiCore.post === 'function') {
+                        res = await window.ApiCore.post('/experiment/update', payload);
+                    } else {
+                        throw new Error('No HTTP client available for POST');
+                    }
+                    console.info('update experiment ok', res && res.data ? res.data : res);
+                    alert('更新成功');
+                    this.editExperimentModalVisible = false;
+                    if (this.course && this.course.courseId) await this.loadCourseDetail(this.course.courseId);
+                } catch (err) {
+                    console.error('update experiment failed', err);
+                    const msg = err && err.response && err.response.data && (err.response.data.msg || err.response.data.message)
+                        ? (err.response.data.msg || err.response.data.message)
+                        : (err && err.message ? err.message : '网络或服务器错误');
+                    alert('更新失败：' + msg);
+                } finally {
+                    this.editExperimentLoading = false;
+                }
+            },
+
+            // delete experiment -> POST /experiment/delete { experimentId }
+            async deleteExperiment(it) {
+                if (!it || (!it.id && !it.experimentId)) return;
+                const id = it.experimentId !== undefined ? it.experimentId : (it.id !== undefined ? it.id : null);
+                if (!id) return;
+                if (!confirm('确定删除该目录吗？')) return;
+                this.deleteExperimentLoadingId = id;
+                const payload = { experimentId: Number(id) };
+                const headers = this._getAuthHeaders();
+                const base = (this.store && this.store.apiBase) ? this.store.apiBase.replace(/\/+$/, '') : '';
+                const url = (base ? base : '') + '/experiment/delete';
+
+                try {
+                    let res;
+                    if (window.axios && typeof window.axios.post === 'function') {
+                        res = await window.axios.post(url, payload, { headers: Object.assign({ 'Content-Type': 'application/json' }, headers), withCredentials: true });
+                    } else if (window.ApiCore && typeof window.ApiCore.post === 'function') {
+                        res = await window.ApiCore.post('/experiment/delete', payload);
+                    } else {
+                        throw new Error('No HTTP client available for POST');
+                    }
+                    console.info('delete experiment ok', res && res.data ? res.data : res);
+                    alert('删除成功');
+                    if (this.course && this.course.courseId) await this.loadCourseDetail(this.course.courseId);
+                } catch (err) {
+                    console.error('delete experiment failed', err);
+                    const msg = err && err.response && err.response.data && (err.response.data.msg || err.response.data.message)
+                        ? (err.response.data.msg || err.response.data.message)
+                        : (err && err.message ? err.message : '网络或服务器错误');
+                    alert('删除失败：' + msg);
+                } finally {
+                    this.deleteExperimentLoadingId = null;
                 }
             },
 
@@ -416,7 +549,7 @@
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
             <div style="font-weight:600">课程目录</div>
             <div>
-              <button style="background:#2b7cff;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer">新建课程目录</button>
+              <button @click="openCreateExperimentModal" style="background:#2b7cff;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer">新建课程目录</button>
             </div>
           </div>
 
@@ -425,18 +558,18 @@
           </div>
 
           <div v-else style="background:#f0f8ff;border-radius:8px;padding:18px">
-            <div v-for="(it, idx) in course.simpleExperiments" :key="it.id || idx" style="display:flex;align-items:center;justify-content:space-between;padding:10px;border-radius:6px;margin-bottom:8px;background:#e6f6ff">
-              <div style="color:#333">{{ (idx+1) + '. ' + (it.title || it.name || ('目录项 ' + (idx+1))) }}</div>
+            <div v-for="(it, idx) in course.simpleExperiments" :key="it.id || it.experimentId || idx" style="display:flex;align-items:center;justify-content:space-between;padding:10px;border-radius:6px;margin-bottom:8px;background:#e6f6ff">
+              <div style="color:#333">{{ (idx+1) + '. ' + (it.title || it.name || it.experimentName || ('目录项 ' + (idx+1))) }}</div>
               <div style="display:flex;gap:8px;align-items:center">
                 <button @click="enterExperiment(it)" style="padding:6px 10px;border-radius:6px;border:1px solid #e6eef8;background:#fff;cursor:pointer">进入</button>
-                <button style="padding:6px 10px;border-radius:6px;border:none;background:#2b7cff;color:#fff;cursor:pointer">编辑</button>
-                <button style="padding:6px 10px;border-radius:6px;border:none;background:#ff6b6b;color:#fff;cursor:pointer">删除</button>
+                <button @click="openEditExperimentModal(it)" style="padding:6px 10px;border-radius:6px;border:none;background:#2b7cff;color:#fff;cursor:pointer">编辑</button>
+                <button @click="deleteExperiment(it)" :disabled="deleteExperimentLoadingId === (it.experimentId||it.id)" style="padding:6px 10px;border-radius:6px;border:none;background:#ff6b6b;color:#fff;cursor:pointer">{{ deleteExperimentLoadingId === (it.experimentId||it.id) ? '删除中...' : '删除' }}</button>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 编辑课程 Modal -->
+        <!-- Edit Course Modal -->
         <div v-if="editModalVisible" style="position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:2000;">
           <div style="width:520px;background:#fff;border-radius:8px;padding:18px;box-shadow:0 8px 40px rgba(0,0,0,0.12);">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -475,6 +608,48 @@
                 <button @click="editModalVisible=false" style="background:#fff;border:1px solid #ccc;padding:6px 12px;border-radius:6px;cursor:pointer">取 消</button>
                 <button @click="submitUpdateCourse" :disabled="editLoading" style="background:#2b7cff;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer">{{ editLoading ? '保存中...' : '确 定' }}</button>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Create Experiment Modal -->
+        <div v-if="createExperimentModalVisible" style="position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:2100;">
+          <div style="width:420px;background:#fff;border-radius:8px;padding:18px;box-shadow:0 8px 40px rgba(0,0,0,0.12);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <div style="font-weight:600">新建课程目录</div>
+              <button @click="createExperimentModalVisible=false" style="background:transparent;border:none;font-size:18px;cursor:pointer">✕</button>
+            </div>
+
+            <div>
+              <div style="font-size:12px;color:#666;margin-bottom:6px">名称 <span style="color:#d9534f">*</span></div>
+              <input v-model="createExperimentForm.name" maxlength="50" placeholder="请输入目录名称（最多50字符）" style="width:100%;padding:8px;border:1px solid #e6eef8;border-radius:6px" />
+              <div style="text-align:right;font-size:12px;color:#999">{{ (createExperimentForm.name||'').length }}/50</div>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+              <button @click="createExperimentModalVisible=false" style="background:#fff;border:1px solid #ccc;padding:6px 12px;border-radius:6px;cursor:pointer">取 消</button>
+              <button @click="submitCreateExperiment" :disabled="createExperimentLoading" style="background:#2b7cff;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer">{{ createExperimentLoading ? '创建中...' : '创 建' }}</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Edit Experiment Modal -->
+        <div v-if="editExperimentModalVisible" style="position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:2100;">
+          <div style="width:420px;background:#fff;border-radius:8px;padding:18px;box-shadow:0 8px 40px rgba(0,0,0,0.12);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <div style="font-weight:600">编辑课程目录</div>
+              <button @click="editExperimentModalVisible=false" style="background:transparent;border:none;font-size:18px;cursor:pointer">✕</button>
+            </div>
+
+            <div>
+              <div style="font-size:12px;color:#666;margin-bottom:6px">名称 <span style="color:#d9534f">*</span></div>
+              <input v-model="editExperimentForm.name" maxlength="50" placeholder="请输入目录名称（最多50字符）" style="width:100%;padding:8px;border:1px solid #e6eef8;border-radius:6px" />
+              <div style="text-align:right;font-size:12px;color:#999">{{ (editExperimentForm.name||'').length }}/50</div>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+              <button @click="editExperimentModalVisible=false" style="background:#fff;border:1px solid #ccc;padding:6px 12px;border-radius:6px;cursor:pointer">取 消</button>
+              <button @click="submitUpdateExperiment" :disabled="editExperimentLoading" style="background:#2b7cff;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer">{{ editExperimentLoading ? '保存中...' : '确 定' }}</button>
             </div>
           </div>
         </div>
